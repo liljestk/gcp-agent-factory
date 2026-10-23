@@ -1,0 +1,65 @@
+# Fast local gates. CI runs the full set via `just check`.
+# Remote hook repos are pinned to commit SHAs (ADR-0012); Renovate keeps them current.
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: check-merge-conflict
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: trailing-whitespace
+        exclude: \.md$
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: 91ab4bf57e58b32adf1a122681f6ebe164d081c8 # frozen: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: tofu-fmt
+        name: tofu fmt
+        entry: tofu fmt
+        language: system
+        files: \.(tf|tfvars|tftest\.hcl)$
+      - id: actionlint
+        name: actionlint
+        entry: actionlint
+        language: system
+        files: ^\.github/workflows/.*\.ya?ml$
+      - id: markdownlint
+        name: markdownlint
+        entry: markdownlint-cli2
+        language: system
+        types: [markdown]
+      - id: gitleaks
+        name: gitleaks (staged)
+        entry: gitleaks git --pre-commit --staged --redact --no-banner --config .gitleaks.toml
+        language: system
+        pass_filenames: false
+      - id: repo-checks
+        name: repo-checks
+        entry: uv run repo-checks all
+        language: system
+        pass_filenames: false
+        always_run: true

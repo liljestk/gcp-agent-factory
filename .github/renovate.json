@@ -1,0 +1,40 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests", ":semanticCommits"],
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "labels": ["dependencies"],
+  "pre-commit": {
+    "enabled": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions"
+    },
+    {
+      "matchManagers": ["mise"],
+      "groupName": "toolchain (mise)"
+    },
+    {
+      "matchManagers": ["pre-commit"],
+      "groupName": "pre-commit hooks"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "tflint plugins in .tflint.hcl",
+      "managerFilePatterns": ["/(^|/)\\.tflint\\.hcl$/"],
+      "matchStrings": [
+        "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"\\s*\\n\\s*source\\s*=\\s*\"github\\.com/(?<depName>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.*)$"
+    }
+  ]
+}

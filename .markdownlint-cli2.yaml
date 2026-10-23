@@ -1,0 +1,18 @@
+config:
+  default: true
+  MD013: false # line length: tables and prose wrapping are the editor's job
+  MD024:
+    siblings_only: true
+  MD033:
+    allowed_elements: [br, details, summary]
+  MD060: false # table pipe spacing is cosmetic; `|---|` separators are fine
+  MD041:
+    # Skills and subagents carry their title in front matter `name:`.
+    front_matter_title: "^\\s*(name|title)\\s*[:=]"
+gitignore: true
+globs:
+  - "**/*.md"
+ignores:
+  - "**/node_modules/**"
+  - "**/.terraform/**"
+  - ".venv/**"

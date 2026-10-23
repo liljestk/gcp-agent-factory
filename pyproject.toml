@@ -1,0 +1,97 @@
+[project]
+name = "gcp-agent-factory"
+version = "0.0.0"
+description = "Agentic demo platform on GCP: multi-agent orchestration, landing zone, data and operations platforms."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = ["repo-checks"]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.13",
+  "pre-commit>=4.0",
+  "pytest>=8.3",
+  "pytest-bdd>=8.0",
+  "pytest-cov>=6.0",
+  "ruff>=0.8",
+  "types-pyyaml>=6.0",
+]
+
+[tool.uv]
+# The root is a virtual workspace: it has no code of its own.
+package = false
+# Supply-chain cooldown (ADR-0001): resolve only releases at least 7 days old.
+exclude-newer = "7 days"
+
+[tool.uv.workspace]
+members = ["libs/*"]
+
+[tool.uv.sources]
+repo-checks = { workspace = true }
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["libs/*/src", ".claude/hooks"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "COM812", # conflicts with the formatter
+  "CPY001", # no per-file copyright headers
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = [
+  "S101",    # assert is how pytest works
+  "PLR2004", # magic values are fine in test expectations
+  "D",       # test names are the documentation
+  "INP001",  # tests are collected with --import-mode=importlib, no __init__.py
+]
+".claude/hooks/*.py" = ["INP001"] # standalone scripts, not a package
+"conftest.py" = ["INP001"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.13"
+mypy_path = ".claude/hooks"
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool", "possibly-undefined"]
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["libs", "tests"]
+pythonpath = [".claude/hooks"]
+addopts = [
+  "--import-mode=importlib",
+  "--strict-markers",
+  "--strict-config",
+  "-ra",
+  "--cov",
+  "--cov-report=term-missing",
+]
+xfail_strict = true
+filterwarnings = ["error"]
+markers = [
+  "smoke: fast post-deploy checks",
+  "acceptance: end-to-end behaviour checks",
+  "security: negative security checks",
+  "chaos: resilience / game-day scenarios",
+]
+
+# ---------------------------------------------------------------- coverage (ADR-0013: 100% line + branch)
+[tool.coverage.run]
+branch = true
+source = ["libs/repo-checks/src", ".claude/hooks"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:"]

@@ -1,0 +1,14 @@
+title = "gcp-agent-factory gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated, vendored and cache directories"
+paths = [
+  '''(^|/)\.venv/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.terraform/''',
+  '''(^|/)\.(mypy|ruff|pytest)_cache/''',
+  '''(^|/)uv\.lock$''',
+]

@@ -1,0 +1,36 @@
+{
+  "name": "gcp-agent-factory",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "workspaceFolder": "/workspaces/gcp-agent-factory",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/gcp-agent-factory,type=bind",
+  "mounts": [
+    "source=gaf-venv,target=/home/vscode/.venv,type=volume",
+    "source=gaf-mise,target=/home/vscode/.local/share/mise,type=volume",
+    "source=gaf-uv-cache,target=/home/vscode/.cache/uv,type=volume"
+  ],
+  "remoteUser": "vscode",
+  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.venv /home/vscode/.local/share/mise /home/vscode/.cache/uv && mise install && just setup",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.mypy-type-checker",
+        "charliermarsh.ruff",
+        "opentofu.vscode-opentofu",
+        "alexkrechik.cucumberautocomplete",
+        "github.vscode-github-actions",
+        "DavidAnson.vscode-markdownlint",
+        "EditorConfig.EditorConfig"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/home/vscode/.venv/bin/python",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true
+        }
+      }
+    }
+  }
+}

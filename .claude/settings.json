@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(just check:*)",
+      "Bash(just lint:*)",
+      "Bash(just test:*)",
+      "Bash(just fmt:*)",
+      "Bash(just repo-checks:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(uv run mypy:*)",
+      "Bash(uv run repo-checks:*)",
+      "Bash(tofu fmt:*)",
+      "Bash(tofu validate:*)",
+      "Bash(tofu test:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "deny": [
+      "Bash(tofu apply:*)",
+      "Bash(tofu destroy:*)",
+      "Bash(terraform apply:*)",
+      "Bash(terraform destroy:*)",
+      "Bash(gcloud iam service-accounts keys create:*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/*.tfstate)",
+      "Read(./**/*.tfstate.*)",
+      "Read(./**/*.tfplan)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "for p in python3 python; do if \"$p\" -c '' </dev/null >/dev/null 2>&1; then exec \"$p\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_bash.py\"; fi; done; exit 0"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "for p in python3 python; do if \"$p\" -c '' </dev/null >/dev/null 2>&1; then exec \"$p\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/format_on_edit.py\"; fi; done; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
