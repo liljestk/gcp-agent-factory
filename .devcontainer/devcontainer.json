@@ -3,15 +3,13 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "workspaceFolder": "/workspaces/gcp-agent-factory",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/gcp-agent-factory,type=bind",
   "mounts": [
     "source=gaf-venv,target=/home/vscode/.venv,type=volume",
     "source=gaf-mise,target=/home/vscode/.local/share/mise,type=volume",
     "source=gaf-uv-cache,target=/home/vscode/.cache/uv,type=volume"
   ],
   "remoteUser": "vscode",
-  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.venv /home/vscode/.local/share/mise /home/vscode/.cache/uv && mise install && just setup",
+  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.venv /home/vscode/.local/share/mise /home/vscode/.cache/uv && mise install && just deps",
   "customizations": {
     "vscode": {
       "extensions": [

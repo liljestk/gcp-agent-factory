@@ -1,5 +1,5 @@
 # Task runner. CI jobs call these same recipes, so a green `just check` locally means a green CI.
-# On Windows, run inside the devcontainer (see AGENTS.md).
+# On Windows, use Git Bash or the devcontainer (see AGENTS.md).
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -10,10 +10,13 @@ tofu_modules := `find modules -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort
 default:
     @just --list
 
-# Install pinned tools, Python deps and git hooks
-setup:
+# Install pinned tools and Python deps
+deps:
     mise install
     uv sync --all-packages --frozen
+
+# deps + git hooks (hooks are per checkout: the devcontainer runs only `deps`)
+setup: deps
     uv run pre-commit install --install-hooks
 
 # Auto-fix formatting and safe lint fixes

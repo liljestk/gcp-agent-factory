@@ -8,7 +8,7 @@
 
 ## Development environment
 
-- Windows: use the devcontainer. It pins every tool and avoids path and line-ending issues.
+- Windows: mise from Git Bash, or the devcontainer via *Clone Repository in Container Volume*. Both pin every tool; see [`AGENTS.md`](AGENTS.md#setup) for why not a bind-mounted Windows folder.
 - macOS/Linux: `mise install && just setup`.
 
 ## Reviews

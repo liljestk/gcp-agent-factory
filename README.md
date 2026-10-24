@@ -14,7 +14,7 @@ A demo platform on Google Cloud for **building and operating agentic application
 ## Quick start
 
 ```bash
-# macOS/Linux (Windows: open the folder in the devcontainer instead)
+# macOS/Linux, or Git Bash on Windows (devcontainer option: see AGENTS.md → Setup)
 mise install
 just setup
 just check

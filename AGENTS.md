@@ -30,7 +30,7 @@ Read [`DESIGN.md`](DESIGN.md) before changing architecture. The roadmap is [`doc
 
 ## Setup
 
-- **Windows**: use the devcontainer (`.devcontainer/`), or mise from Git Bash (the `justfile` needs bash). If you commit from inside the devcontainer, run `pre-commit install` there too. Hooks installed in the container don't work for commits made on the host.
+- **Windows**: use mise from Git Bash (the `justfile` needs bash), or the devcontainer opened with **Dev Containers: Clone Repository in Container Volume**. Don't open a folder from a Windows drive in the container: every file then looks executable and ruff fails with `EXE002`. The container's first start runs `just deps`, which installs no git hooks, so commits made on the host still work. If you commit from inside the container, run `just setup` there.
 - **macOS/Linux**: install [mise](https://mise.jdx.dev), then `mise install && just setup`.
 - Every tool version is pinned in `mise.toml`; Python dependencies are locked in `uv.lock`.
 
