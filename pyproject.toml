@@ -3,6 +3,8 @@ name = "gcp-agent-factory"
 version = "0.0.0"
 description = "Agentic demo platform on GCP: multi-agent orchestration, landing zone, data and operations platforms."
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.13,<3.14"
 dependencies = ["repo-checks"]
 

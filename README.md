@@ -27,3 +27,7 @@ just check
 - [`docs/PLAN.md`](docs/PLAN.md): full architecture plan and roadmap
 - [`docs/adr/`](docs/adr/README.md): architecture decisions
 - [`SECURITY.md`](SECURITY.md): reporting vulnerabilities
+
+## License
+
+[Apache License 2.0](LICENSE).
