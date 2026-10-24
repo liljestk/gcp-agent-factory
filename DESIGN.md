@@ -52,7 +52,7 @@ Platforms: **landing zone** (org, folders, projects, policies, network), **agent
 | INV-10 | Every requirement is traced to a test | `repo-checks traceability` | ✅ |
 | INV-11 | Third-party CI and hook code is pinned to commit SHAs | `repo-checks pins` + zizmor + Renovate | ✅ |
 | INV-12 | Skills, subagents and ADRs are well-formed and indexed | `repo-checks skills/subagents/adrs` | ✅ |
-| INV-13 | No secrets in the repo | gitleaks (pre-commit + CI) + GitHub push protection | gitleaks ✅ · push protection on first push |
+| INV-13 | No secrets in the repo | gitleaks (pre-commit + CI) + GitHub push protection | ✅ |
 
 ## 4. Cost guardrails
 
