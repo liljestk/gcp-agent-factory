@@ -23,7 +23,7 @@ The `waf-review` skill and `waf-reviewer` subagent use this file; update it in t
 | Identity per agent and app, least privilege | `modules/agent-service`, `app-tenant` | ⬜ P3/P6 |
 | VPC-SC perimeter, restricted VIP, no default egress | network stack | ⬜ P1 (dry-run) / P7 (enforce) |
 | CMEK for state and data | bootstrap, data stacks | ⬜ P1/P4 |
-| SHA-pinned supply chain, attestations | `repo-checks pins`, Renovate, deploy workflow | 🟡 pins ✅ · attestations ⬜ P3 |
+| SHA-pinned supply chain, attestations | `repo-checks pins`, Renovate, dependency review + Dependabot alerts, deploy workflow | 🟡 pins ✅ · attestations ⬜ P3 |
 | Static analysis and secret scanning | CodeQL, ruff `S`, zizmor, gitleaks, GitHub push protection | ✅ |
 | Protected `main`: PRs only, required CI and CodeQL checks, no force push | GitHub ruleset `main` (click-ops until Phase 1 moves it to code) | ✅ |
 | Agent guardrails (tool allow-list, HITL, prompt-injection defences) | `libs/agent-core` | ⬜ P3 |
