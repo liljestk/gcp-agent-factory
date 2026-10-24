@@ -23,6 +23,18 @@
     {
       "matchManagers": ["pre-commit"],
       "groupName": "pre-commit hooks"
+    },
+    {
+      "description": "The Python version is an ADR-0002 decision (requires-python, .python-version): change it with an ADR, not a bot PR",
+      "matchDepNames": ["python"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    },
+    {
+      "description": "Runner OS upgrades (e.g. ubuntu-24.04 to 26.04) are deliberate: change them with an ADR, not a bot PR",
+      "matchDatasources": ["github-runners"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
     }
   ],
   "customManagers": [
