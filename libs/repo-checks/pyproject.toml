@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Machine checks for gcp-agent-factory repository conventions (skills, ADRs, traceability, pragmas, pins)."
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.15,<3.16"
 dependencies = ["pyyaml>=6.0"]
 
 [project.scripts]
