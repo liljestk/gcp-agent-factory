@@ -1,7 +1,7 @@
 # Agentic Demo Platform on GCP — Monorepo Plan
 
 > Status: **DRAFT v0.2** (2026-10-23) — planning only, nothing provisioned yet.
-> Decisions confirmed so far: Cloud Identity Free org · region `europe-north1` · public GitHub repo [`liljestk/gcp-agent-factory`](https://github.com/liljestk/gcp-agent-factory) · dev + prod with 5 projects · platform name **gcp-agent-factory** (naming rules in §4.0).
+> Decisions confirmed so far: the owner's existing sandbox org with identity domain `smartass.dad` (ADR-0017, proposed) · region `europe-north1` · public GitHub repo [`liljestk/gcp-agent-factory`](https://github.com/liljestk/gcp-agent-factory) · dev + prod with 5 projects · platform name **gcp-agent-factory** (naming rules in §4.0).
 > Project IDs in this doc leave out their 4-char suffix for readability: `gcp-agent-factory-prod` means `gcp-agent-factory-prod-<sfx>`.
 
 ---
@@ -52,6 +52,7 @@
 | 0014 | Data products | **ODCS** (Open Data Contract Standard) YAML contracts + Dataform + BigQuery; dogfood the platform's own data first | Free transformation tool; contracts are testable in CI |
 | 0015 | Model endpoint | Gemini on **Vertex AI** (Flash-tier by default, model set per agent in its manifest), EU endpoint where available | Request labels give per-agent cost attribution, which the AI Studio API doesn't |
 | 0016 | Dev workflow | Spec-driven: `AGENTS.md` (canonical) + `CLAUDE.md` + `DESIGN.md` + `specs/*/{requirements,design,tasks}.md` + skills | Humans and coding agents share one source of truth |
+| 0017 | Organization | The owner's existing **sandbox org**; groups and identities on `smartass.dad` | No domain to buy, DNS stays on Cloudflare, and the org holds nothing else for the guardrails to hit |
 
 ---
 
@@ -134,7 +135,8 @@ Everything derives from the repo name **`gcp-agent-factory`**. The short alias *
 | Thing | Pattern | Example / note |
 |---|---|---|
 | GitHub repo | `liljestk/gcp-agent-factory` | public · `repository_id=1431415117` · `repository_owner_id=4373495` (pinned in the WIF condition, §5.1) |
-| Organization | the Cloud Identity **primary domain** *is* the org name | GCP can't name an org separately from its domain. Candidates derived from the repo name (unregistered per RDAP on 2026-10-23): `gcp-agent-factory.dev` / `.com` / `.cloud` (see note below) |
+| Organization | the owner's existing sandbox org, named after that account's **primary domain** | GCP can't name an org separately from its primary domain, so this one name doesn't derive from the repo. The repo refers to it only by `org_id` and `customer_id` (ADR-0017) |
+| Identity domain | `smartass.dad` | a secondary domain of the same account (DNS on Cloudflare); groups and the break-glass account live on it, e.g. `gcp-org-admins@smartass.dad` |
 | Core project IDs | `gcp-agent-factory-<role>-<sfx>` | `gcp-agent-factory-prod-k3x9`: 27 chars, under the 30-char limit |
 | Project display names | `gcp-agent-factory <role>` | `gcp-agent-factory prod` |
 | App project IDs | `gaf-app-<name>-<sfx>` | the full name would leave only 3 chars for `<name>` |
@@ -144,13 +146,11 @@ Everything derives from the repo name **`gcp-agent-factory`**. The short alias *
 | Labels | `repo=gcp-agent-factory` on every resource | plus the taxonomy in §9.1 |
 | Folders | `shared`, `dev`, `prod` | display names under the org |
 
-Note on the domain: a domain that contains "gcp" may run into Google's trademark and brand guidelines. If you'd rather avoid that, use a neutral domain or a subdomain you already control (e.g. `agent-factory.<your-domain>`); nothing else in the naming changes.
-
 ### 4.1 Resource hierarchy
 
 ```mermaid
 graph TD
-  ORG["Organization (Cloud Identity Free, your domain)"]
+  ORG["Organization (existing sandbox org, ADR-0017)"]
   ORG --> FS["folder: shared"]
   ORG --> FD["folder: dev"]
   ORG --> FP["folder: prod"]
@@ -162,7 +162,7 @@ graph TD
 ```
 
 - **Org-level tags**: `env` (shared|dev|prod) bound to folders. They're used in IAM conditions and conditional org policies.
-- **Groups instead of users** (Cloud Identity Free supports groups): `gcp-org-admins`, `gcp-billing-admins`, `gcp-platform-engineers`, `gcp-security-reviewers`, `gcp-viewers`. Plus one documented **break-glass** account.
+- **Groups instead of users**, on `smartass.dad`: `gcp-org-admins`, `gcp-billing-admins`, `gcp-platform-engineers`, `gcp-security-reviewers`, `gcp-viewers`. Plus one documented **break-glass** account. They are security groups that only admit members of the account, because `iam.allowedPolicyMemberDomains` doesn't look inside groups. `smartass.dad` mail goes to AWS SES, not Google, so these group addresses receive no mail; essential contacts, budget emails and alerts go to one notification address that SES delivers (ADR-0017).
 - **App tenancy tiers**: (a) *shared*, where an app runs in the dev/prod project with its own SA, labels and budget filter (default, cheap); (b) *dedicated*, where the app gets its own project via the project factory (shown with one app, and grows when quota allows).
 
 ### 4.2 Org policies (managed by OpenTofu, rolled out with `dry_run_spec` first)
@@ -437,7 +437,7 @@ Enforced by `modules/labels` (one source), a **conftest** policy on plans, and a
 | Cloud DNS private zones (~4) | ~$1 | |
 | Artifact Registry | <$1 | cleanup policies |
 | Logging / Monitoring | $0–3 | exclusions, 30-day retention, lean alerts |
-| VPC-SC, org policies, IAM, Cloud Identity Free | $0 | |
+| VPC-SC, org policies, IAM, Cloud Identity (existing account) | $0 | |
 | **Gemini tokens** | usage | **the main variable**: Flash-tier default, daily caps per agent |
 
 **Avoid list (fixed-cost traps)**: Cloud NAT, any load balancer / forwarding rule, Serverless VPC Access connectors, PSC endpoints, Cloud SQL / AlloyDB / Memorystore, GKE node pools, Composer, Dataflow, Dataproc, Vertex AI online prediction or Vector Search endpoints, Agent Engine with min instances, SCC Premium, Cloud Armor, long log retention, high-cardinality custom metrics, extra Firestore databases (no free tier).
@@ -507,11 +507,12 @@ Subagents (`.claude/agents/`): `tofu-reviewer`, `security-reviewer`, `finops-rev
 
 **Manual prerequisites (Phase 1, documented in `docs/runbooks/bootstrap.md`)**
 
-1. Register or pick the org domain (§4.0) → verify it via a DNS TXT record → create the **Cloud Identity Free** org → create the groups above.
-2. Link the free-trial billing account to the org (**don't upgrade to paid** while the trial runs; that keeps L4).
-3. Enable **billing export to BigQuery** in the console (this can't be automated; the dataset itself comes from tofu).
-4. Create a GitHub App for `incident-router` / `app-builder` (Phase 2/6); its key goes into Secret Manager.
-5. Run `platforms/landing-zone/infra/bootstrap` once with your own credentials; everything after that runs through CI.
+1. Verify `smartass.dad` in the existing Google account via a DNS TXT record (done) → take stock of what the org already holds (projects, folders, IAM, policies, access policies, tag keys, sinks, contacts) → create the groups above on `smartass.dad`, closed to outside members → require security keys or passkeys for every super admin and the break-glass account (ADR-0017).
+2. From the personal account that owns the free-trial billing account, grant `gcp-billing-admins@smartass.dad` Billing Account Administrator, and protect that account with a security key or passkey (**don't upgrade to paid** while the trial runs; that keeps L4).
+3. Set up one notification address on `smartass.dad` that SES delivers to an inbox you read, and send it a test message (ADR-0017).
+4. Enable **billing export to BigQuery** in the console as a `gcp-billing-admins` member (this can't be automated; the dataset itself comes from tofu).
+5. Create a GitHub App for `incident-router` / `app-builder` (Phase 2/6); its key goes into Secret Manager.
+6. Run `platforms/landing-zone/infra/bootstrap` once with your own credentials (an identity in the org, not the personal billing owner); everything after that runs through CI.
 
 ---
 
@@ -523,6 +524,7 @@ These items move fast or weren't confirmable from current sources:
 - **Gemini model availability** in `europe-north1` vs other EU regions vs `global`; this decides ADR 0015.
 - **IAP directly on Cloud Run**: launched as Preview in 2025; confirm GA status.
 - **Free-trial quotas**: the actual project and billing-linked-project limits (Console → IAM & Admin → Quotas).
+- **Free-trial billing account**: whether it can move into the org without losing the credit (ADR-0017 keeps it outside until this is known).
 - **Agent Engine Agent Identity**: currently documented as recommended for test environments only, and it requires an org.
 - **Vertex request label rules** (key format, per-request cap) and whether newer Gemini models use dynamic shared quota, in which case per-project quota overrides won't apply and in-app budgets become the only rate cap.
 - **Pricing** for Monitoring alert conditions, Model Armor and the Agent Engine free tier.
@@ -533,9 +535,10 @@ Resolved:
 
 - Name and prefix: `gcp-agent-factory` (alias `gaf`), see §4.0.
 - Repo: `liljestk/gcp-agent-factory`, public, empty and owned by a user account (created 2026-10-23).
+- Org: the owner's existing sandbox org, identity domain `smartass.dad` (ADR-0017, proposed, 2026-10-25). The free trial runs on a billing account owned by the owner's personal Google account, outside the org.
 
 Still needed:
 
-- **Before Phase 1**: the org domain (register one of the §4.0 candidates, or use a domain or subdomain you control).
+- **Before the first bootstrap run**: the org ID and directory customer ID (stack inputs).
 - **Before Phase 1**: the free-trial **start date** (the 90-day clock drives the roadmap pacing).
 - Phase 0 needs neither.

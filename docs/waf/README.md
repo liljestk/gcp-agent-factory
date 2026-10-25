@@ -20,6 +20,7 @@ The `waf-review` skill and `waf-reviewer` subagent use this file; update it in t
 |---|---|---|
 | Keyless CI (WIF pinned to repo ID) | bootstrap stack | ⬜ P1 |
 | Org policies (keys, public access, locations, services) | foundation stack | ⬜ P1 |
+| Privileged identities outside IaC (super admins, break-glass, billing-account owner): phishing-resistant 2SV, closed groups, org inventory | bootstrap runbook, ADR-0017 | ⬜ P1 (manual) |
 | Identity per agent and app, least privilege | `modules/agent-service`, `app-tenant` | ⬜ P3/P6 |
 | VPC-SC perimeter, restricted VIP, no default egress | network stack | ⬜ P1 (dry-run) / P7 (enforce) |
 | CMEK for state and data | bootstrap, data stacks | ⬜ P1/P4 |
