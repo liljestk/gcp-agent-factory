@@ -1,11 +1,11 @@
 ---
 name: cost-impact
-description: Assess and write the cost impact of a change for the $300 GCP free-trial budget (idle cost, per-use cost, free tiers, labels, budgets, guardrails). Use when a spec's design.md needs a Cost impact section, when infra or new services are added, or when the user asks "what will this cost".
+description: Assess and write the cost impact of a change for the €264 ($300) GCP free-trial budget (idle cost, per-use cost, free tiers, labels, budgets, guardrails). Use when a spec's design.md needs a Cost impact section, when infra or new services are added, or when the user asks "what will this cost".
 ---
 
 # cost-impact
 
-Context: a $300 credit over 90 days. Targets: **≤ $15/month idle** and **≤ $60/month during active demos**. Budgets and kill-switch layers are in ADR-0008.
+Context: a €264 ($300) credit over 90 days on an EUR billing account, 2026-10-24 → 2027-01-22. Targets: **≤ €13/month idle** and **≤ €53/month during active demos**. Budgets track gross cost (credits excluded). Budgets and kill-switch layers are in ADR-0008.
 
 ## Steps
 
@@ -23,11 +23,11 @@ Context: a $300 credit over 90 days. Targets: **≤ $15/month idle** and **≤ $
    ## Cost impact
    | Item | Idle / month | Per use | Free tier | Guardrail |
    |---|---|---|---|---|
-   | … | $0 | ~$0.002 / run | 2M req/month | max_instances=2 |
+   | … | €0 | ~€0.002 / run | 2M req/month | max_instances=2 |
    Net: +$X idle, ~$Y at demo volume. Budget: <project/label budget>. Avoid-list hits: none.
    ```
 
-7. Prices change: say "approx." and recommend checking the GCP pricing calculator for anything above $1/month.
+7. Prices change: say "approx." and recommend checking the GCP pricing calculator for anything above €1/month.
 
 ## Red flags
 

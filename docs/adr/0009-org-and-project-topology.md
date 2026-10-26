@@ -6,6 +6,8 @@ decision-makers: liljestk
 
 # ADR-0009: Org, folder and project topology
 
+> [ADR-0017](0017-existing-sandbox-org.md) replaces the first decision bullet (organization and domain). [ADR-0018](0018-trust-root-stacks-applied-locally.md) moves the seed project into a `trust-root` folder and has `bootstrap` create the top-level folders. The rest of this ADR stands.
+
 ## Context and problem statement
 
 A credible landing zone needs an organization (folders, org policies, VPC-SC). The free-trial billing account likely caps linked projects at around 5. The region must balance EU residency, carbon and cost.
