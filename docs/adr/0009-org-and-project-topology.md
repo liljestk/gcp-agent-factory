@@ -6,6 +6,8 @@ decision-makers: liljestk
 
 # ADR-0009: Org, folder and project topology
 
+> [ADR-0017](0017-existing-sandbox-org.md) replaces the first decision bullet (organization and domain); the rest of this ADR stands.
+
 ## Context and problem statement
 
 A credible landing zone needs an organization (folders, org policies, VPC-SC). The free-trial billing account likely caps linked projects at around 5. The region must balance EU residency, carbon and cost.

@@ -64,7 +64,7 @@ Using anything on that list requires an ADR with a cost estimate and a budget.
 
 ## 5. Naming
 
-Everything derives from `gcp-agent-factory` (short alias `gaf` where length limits bite). Core project IDs are `gcp-agent-factory-<seed|ops|dev|prod>-<sfx>`; app projects are `gaf-app-<name>-<sfx>`. The full table is in [PLAN §4.0](docs/PLAN.md#40-naming).
+Everything derives from `gcp-agent-factory` (short alias `gaf` where length limits bite), except the org name and the identity domain `smartass.dad` ([ADR-0017](docs/adr/0017-existing-sandbox-org.md)). Core project IDs are `gcp-agent-factory-<seed|ops|dev|prod>-<sfx>`; app projects are `gaf-app-<name>-<sfx>`. The full table is in [PLAN §4.0](docs/PLAN.md#40-naming).
 
 ## 6. Decisions
 

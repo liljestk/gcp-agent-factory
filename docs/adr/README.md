@@ -21,3 +21,4 @@ Allowed `status` values: `proposed`, `accepted`, `rejected`, `deprecated`, `supe
 | [0014](0014-data-products-odcs-dataform.md) | Data products with ODCS contracts and Dataform | accepted |
 | [0015](0015-gemini-on-vertex-model-endpoint.md) | Gemini on Vertex AI and model endpoint location | proposed |
 | [0016](0016-spec-driven-agent-ready-repo.md) | Spec-driven, agent-ready repository conventions | accepted |
+| [0017](0017-existing-sandbox-org.md) | Use the existing sandbox org, with smartass.dad for identities | proposed |
