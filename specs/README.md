@@ -19,3 +19,4 @@ Rules:
 | Spec | Title | Status |
 |---|---|---|
 | [001](001-repo-foundations/requirements.md) | Repo foundations (Phase 0) | in progress |
+| [002](002-bootstrap-and-ci-pipeline/requirements.md) | Bootstrap and CI pipeline (Phase 1, part 1) | draft |

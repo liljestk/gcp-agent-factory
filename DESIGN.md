@@ -6,8 +6,10 @@ This file holds the **rules that must stay true**. The roadmap and reasoning are
 
 ```mermaid
 graph LR
+  subgraph trust["folder: trust-root (owner-applied, ADR-0018)"]
+    SEED["gcp-agent-factory-seed<br/>state · KMS · WIF · CI SAs"]
+  end
   subgraph shared["folder: shared"]
-    SEED["gcp-agent-factory-seed<br/>state · KMS · WIF · CI SAs · Artifact Registry"]
     OPS["gcp-agent-factory-ops<br/>metrics scope · logs · billing export · budget-enforcer · incident-router"]
   end
   subgraph env["folders: dev / prod (one workload project each)"]
@@ -22,7 +24,7 @@ graph LR
   OPS -- kill switch --> AG
 ```
 
-Platforms: **landing zone** (org, folders, projects, policies, network), **agents**, **data**, **ops**. Region `europe-north1`. Stacks apply in order `bootstrap → foundation → network → ops → data → agents → apps`.
+Platforms: **landing zone** (org, folders, projects, policies, network), **agents**, **data**, **ops**. Region `europe-north1`. The owner applies the trust-root stacks `bootstrap` and `github` locally; CI applies the rest in order `foundation → network → ops → data → agents → apps` (ADR-0018).
 
 ## 2. Principles
 
@@ -42,7 +44,7 @@ Platforms: **landing zone** (org, folders, projects, policies, network), **agent
 |---|---|---|---|
 | INV-01 | No service-account keys exist anywhere | org policy `iam.disableServiceAccountKeyCreation`; WIF for CI | Phase 1 |
 | INV-02 | Every labelable resource carries the standard labels from `modules/labels` | module validation + conftest plan policy + asset scan | module ✅ · policy Phase 1 |
-| INV-03 | Infra changes reach GCP only through CI | WIF bindings to GitHub environments; Claude hook + deny rules | hooks ✅ · WIF Phase 1 |
+| INV-03 | Infra changes reach GCP only through CI, except the trust-root stacks (`bootstrap`, `github`), which the owner applies locally ([ADR-0018](docs/adr/0018-trust-root-stacks-applied-locally.md)) | WIF bindings to GitHub environments; local-only stacks in the pipeline catalog; nightly drift plan of `bootstrap`; Claude hook + deny rules | hooks ✅ · WIF Phase 1 |
 | INV-04 | Every Pub/Sub subscription has a DLQ, retry policy and max delivery attempts | `modules/pubsub-channel` + conftest | Phase 3 |
 | INV-05 | Every agent has a manifest, own SA, budget and kill switch | `modules/agent-service` reads the manifest; JSON Schema in CI | Phase 3 |
 | INV-06 | Every message handler is idempotent | `agent-core` ledger + BDD duplicate-delivery scenarios | Phase 3 |

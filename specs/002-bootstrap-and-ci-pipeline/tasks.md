@@ -1,0 +1,20 @@
+# 002: Bootstrap and CI pipeline (tasks)
+
+Work through in order. Tick a task only when its tests pass under `just check`.
+
+- [x] 1. Write the `.feature` scenarios tagged with the requirement IDs (`platforms/landing-zone/tests/features/`)
+- [ ] 2. `libs/stacks` + `platforms/stacks.yaml`: move the in-process `pipeline` scenarios next to the code, write unit tests at 100%, then the code (module expansion, "all stacks" paths, trust-root modes, tiers) (REQ-LZ-005/006)
+- [ ] 3. `repo-checks encryption` and `repo-checks tofu-safety`: move the `safety` scenarios, write unit tests, then the checks (REQ-LZ-003/012)
+- [ ] 4. `modules/kms`, `modules/project`, `modules/wif-github`, each with `tofu test`: plan and deploy gates evaluated against claim fixtures, labels, lien, rotation (`# covers:` REQ-LZ-001/002/003/009)
+- [ ] 5. `bootstrap` stack with `tofu test` on mock providers (REQ-LZ-004/010/011):
+  - folders and the per-identity role allow-list per scope
+  - one mode per role, and the deny policy
+  - state prefix and key grants, bucket protections
+  - the gross-cost billing-account budget
+- [ ] 6. `github` stack with `tofu test`: environments, reviewers, branch policies, `can_admins_bypass = false`, `prevent_destroy`, the ruleset import with `tofu-plan`, variables (REQ-LZ-008)
+- [ ] 7. `ci-canary` stack (dev and prod), workflows `tofu.yml` and `drift.yml`, and the composite actions. actionlint and zizmor clean; `gha-creds-*.json` added to `.gitignore` (REQ-LZ-005/006/007)
+- [ ] 8. Step definitions for the deployed scenarios in `libs/testing`, a `just acceptance` recipe, and the nightly run in `drift.yml` as `ci-plan`
+- [ ] 9. `docs/runbooks/bootstrap.md` (first run, isolated credentials, migration, stale plans, locks, state restore, trust-root change flow); add `gcloud` to `mise.toml`; rehearse the encryption sequence locally with `pbkdf2`
+- [ ] 10. `just check` green; `tofu-reviewer`, `security-reviewer`, `waf-reviewer` and `finops-reviewer` run on the implementation
+- [ ] 11. **Owner**: manual prerequisites (PLAN §12), first `bootstrap` apply, state migration, `github` apply, credential clean-up
+- [ ] 12. The deployed `@security` scenarios pass; a PR touching `bootstrap` shows an empty CI plan; a `ci-canary` merge applies dev and waits for approval on prod; the STS refusal from a scratch repository is confirmed

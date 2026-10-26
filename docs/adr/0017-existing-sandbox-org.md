@@ -26,10 +26,10 @@ Three more facts shape the design:
 
 ## Decision
 
-- **Org**: the platform lives in the existing organization of the owner's Google account. This replaces ADR-0009's first decision bullet; the rest of ADR-0009 stands. The `foundation` stack takes the org over as it is:
-  - It removes the domain-wide Project Creator and Billing Account Creator grants, so only `ci-foundation` creates projects.
-  - It imports any org policy Google already enforces instead of creating it.
-  - It rolls out the remaining policies in dry-run first.
+- **Org**: the platform lives in the existing organization of the owner's Google account. This replaces ADR-0009's first decision bullet; the rest of ADR-0009 stands. The landing-zone stacks take the org over as it is:
+  - `bootstrap`, which owns org-level IAM ([ADR-0018](0018-trust-root-stacks-applied-locally.md)), removes the domain-wide Project Creator and Billing Account Creator grants, so only `ci-foundation` creates projects.
+  - `foundation` imports any org policy Google already enforces instead of creating it.
+  - `foundation` rolls out the remaining policies in dry-run first.
 - **Identities**: `smartass.dad` is the platform's identity domain. The groups from PLAN §4.1 and the break-glass account live on it.
   - The groups are security groups that only admins can add members to.
   - The account doesn't allow members from outside it, because the domain restriction doesn't look inside groups.
@@ -68,7 +68,7 @@ Three more facts shape the design:
 
 ## Enforcement
 
-- **Variables**: `foundation` takes `org_id`, `customer_id`, `identity_domain` and `notification_email` as validated variables, covered by `tofu test`. Group addresses derive from `identity_domain`, and `notification_email` rejects `gcp-*` group addresses. A `repo-checks` rule rejects literal org IDs, customer IDs and `smartass.dad` in `.tf` files.
+- **Variables**: `bootstrap` takes `org_id`, `customer_id` and `identity_domain` as validated variables and passes them to later stacks as outputs; `foundation` adds `notification_email`. All are covered by `tofu test`. Group addresses derive from `identity_domain`, and `notification_email` rejects `gcp-*` group addresses. A `repo-checks` rule rejects literal org IDs, customer IDs and `smartass.dad` in `.tf` files.
 - **`@security` BDD scenarios**:
   - During dry-run, the violation log flags a `gmail.com` member and shows no violations for the platform's own principals.
   - After enforcement, that grant is denied, CI still authenticates through WIF, and a budget alert still reaches Pub/Sub.

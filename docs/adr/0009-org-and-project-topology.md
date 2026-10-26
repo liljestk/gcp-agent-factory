@@ -6,7 +6,7 @@ decision-makers: liljestk
 
 # ADR-0009: Org, folder and project topology
 
-> [ADR-0017](0017-existing-sandbox-org.md) replaces the first decision bullet (organization and domain); the rest of this ADR stands.
+> [ADR-0017](0017-existing-sandbox-org.md) replaces the first decision bullet (organization and domain). [ADR-0018](0018-trust-root-stacks-applied-locally.md) moves the seed project into a `trust-root` folder and has `bootstrap` create the top-level folders. The rest of this ADR stands.
 
 ## Context and problem statement
 

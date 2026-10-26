@@ -22,3 +22,4 @@ Allowed `status` values: `proposed`, `accepted`, `rejected`, `deprecated`, `supe
 | [0015](0015-gemini-on-vertex-model-endpoint.md) | Gemini on Vertex AI and model endpoint location | proposed |
 | [0016](0016-spec-driven-agent-ready-repo.md) | Spec-driven, agent-ready repository conventions | accepted |
 | [0017](0017-existing-sandbox-org.md) | Use the existing sandbox org, with smartass.dad for identities | proposed |
+| [0018](0018-trust-root-stacks-applied-locally.md) | Apply the trust-root stacks locally, everything else through CI | proposed |
