@@ -133,7 +133,7 @@ One bucket, `gcp-agent-factory-tfstate-<sfx>`, in `europe-north1`:
 
 ## Pipeline
 
-- **Catalog and matrix**: `stacks matrix --base <sha>` reads `git diff` and expands module changes to every stack that sources them (transitively). Changes to `mise.toml`, `stacks.yaml`, `.github/workflows/` and `.github/actions/` count as "all stacks". It emits JSON by order tier. `bootstrap` is plan-only; `github` never appears.
+- **Catalog and matrix**: `stacks matrix --base <sha>` runs `git diff --name-only --no-renames -z <sha>...HEAD` itself and fails if git does (or `stacks matrix --all` for drift). It expands module changes to every stack that sources them (transitively). Changes to `mise.toml`, `stacks.yaml`, `.github/workflows/`, `.github/actions/`, `libs/stacks/`, `pyproject.toml`, `uv.lock` and `justfile` count as "all stacks". A stack's declared `inputs` (files it reads from outside its directory) count for that stack. Anything the tool can't follow (a non-literal module source, a symlink, an unparsable file, a module inside another stack) fails the run instead of planning less. It emits JSON by order tier. `bootstrap` is plan-only; `github` never appears.
 - **On a pull request**:
   1. The plan job:
      - runs `just repo-checks` (including `tofu-safety`) before it authenticates

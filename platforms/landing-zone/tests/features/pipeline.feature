@@ -1,26 +1,9 @@
 Feature: Plan on pull request, apply on merge, watch for drift
   Every change to infrastructure is planned on its pull request and applied
-  from main in stack order, and drift is reported as an issue. The untagged
-  scenarios run in-process on every pull request; the @acceptance ones run
+  from main in stack order, and drift is reported as an issue. Which stacks a
+  change affects is specified next to the code, in libs/stacks. The untagged
+  scenarios here read the workflow files in-process; the @acceptance ones run
   on GitHub when the pipeline changes.
-
-  @REQ-LZ-005
-  Scenario: A module change plans every stack that uses it
-    Given the stack "bootstrap" uses module "kms" through module "project"
-    When the affected stacks are computed for a change to "modules/kms/main.tf"
-    Then "bootstrap" is planned
-
-  @REQ-LZ-005
-  Scenario: A toolchain change plans every stack, a docs change plans none
-    When the affected stacks are computed for a change to "mise.toml"
-    Then every CI-plannable stack is planned
-    When the affected stacks are computed for a change to "docs/PLAN.md"
-    Then nothing is planned
-
-  @REQ-LZ-005
-  Scenario: The github stack is never planned in CI
-    When the affected stacks are computed for a change to "platforms/landing-zone/infra/github/main.tf"
-    Then nothing is planned
 
   @REQ-LZ-005 @security
   Scenario: The job that comments holds no Google credentials
@@ -34,11 +17,11 @@ Feature: Plan on pull request, apply on merge, watch for drift
     Then none is triggered by "pull_request_target", "workflow_run" or "issue_comment"
 
   @REQ-LZ-006
-  Scenario: Trust-root stacks get no apply job, and prod waits for dev
-    When the apply matrix is computed for a change to every stack
-    Then no apply job exists for "bootstrap" or "github"
-    And every prod job needs the dev job of the same tier
-    And an unaffected tier does not block the tiers after it
+  Scenario: The workflow applies tiers in order, prod after dev
+    When I read the "tofu.yml" workflow
+    Then every prod apply job needs the dev apply job of the same tier
+    And each tier runs unless an earlier tier failed or was cancelled
+    And every apply job runs only in the environment of its instance
 
   @REQ-LZ-006 @acceptance
   Scenario: A merged canary change applies dev and waits for approval on prod
