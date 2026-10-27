@@ -55,7 +55,13 @@ Related ADRs:
 #### Acceptance criteria
 
 - Each scope (`trust-root`, `shared`, `dev`, `prod`) has its own state key. A stored state object is an encryption envelope with no plaintext resources.
-- A root module without an enforced `encryption` block for state and plans fails `just check`.
+- A root module fails `just check` unless it has exactly one `encryption` block meeting all of these:
+  - a `gcp_kms` key provider and an `aes_gcm` method
+  - `enforced = true` for state and plans
+  - no `fallback`
+  - not set in an override file
+
+  Files are read as OpenTofu reads them: a `.tofu` file shadows its `.tf` twin.
 - The bucket has:
   - versioning, uniform bucket-level access and public access prevention
   - the bucket CMEK key
@@ -200,16 +206,19 @@ Related ADRs:
 
 #### Acceptance criteria
 
-- Rejected in `.tf` files:
-  - `external` and `http` data sources
-  - provisioners
-  - `nonsensitive(`
-  - providers outside the allow-list
-  - module sources other than local paths
-  - `google_secret_manager_secret_version`, because secret payloads would land in state
-- `ci-plan` holds no Secret Manager accessor, BigQuery data or Storage object role outside the state bucket.
+- **Providers**: every provider in OpenTofu code must be on the allow-list (`hashicorp/google`, `hashicorp/google-beta`, `hashicorp/random`, `integrations/github`). That covers providers declared in `required_providers`, pinned in a lock file, or used through a `resource`, `data` or `ephemeral` type, including data sources inside `check` blocks. `external` and `http` are therefore rejected.
+- **Provider blocks** may set only allow-listed arguments, so no custom endpoint, credential or base URL can redirect CI's token.
+- **State** lives only in the `gcs` backend, and `terraform_remote_state` reads only from `gcs`. In both cases only `bucket` and `prefix` may be set, and `cloud` blocks are rejected.
+- **Also rejected**:
+  - provisioners anywhere
+  - `nonsensitive(`, also inside templates
+  - module sources that aren't local, leave the repository, or point into a directory the checks skip
+  - types that handle secret payloads (Secret Manager versions, KMS secrets, service-account keys and tokens)
+  - escape sequences that could hide any of these
+- **File reads**: `file()`, `templatefile()` and `fileset()` read only literal paths inside the module, or paths declared in the stack's `inputs`.
+- **`ci-plan`** holds no Secret Manager accessor, BigQuery data or Storage object role outside the state bucket.
 
-**Verified by**: `platforms/landing-zone/tests/features/safety.feature` (tag `@REQ-LZ-012`)
+**Verified by**: `libs/repo-checks/tests/features/tofu_safety.feature` and `platforms/landing-zone/tests/features/safety.feature` (tag `@REQ-LZ-012`)
 
 ## Out of scope
 

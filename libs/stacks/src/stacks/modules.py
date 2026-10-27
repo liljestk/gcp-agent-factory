@@ -7,20 +7,15 @@ instead of being skipped.
 
 from __future__ import annotations
 
-import json
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Final
 
-import hcl2
-from lark.exceptions import LarkError
-
 from stacks.errors import StacksError
+from stacks.hcl import CONFIG_PATTERNS, load_config
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-# Every file OpenTofu loads from a module directory.
-SOURCE_PATTERNS: Final = ("*.tf", "*.tofu", "*.tf.json", "*.tofu.json")
 LOCAL_PREFIXES: Final = ("./", "../")
 
 
@@ -38,7 +33,7 @@ def local_modules(root: Path, directory: str) -> frozenset[str]:
     while pending:
         current = pending.pop()
         for source in module_sources(root, current):
-            target = _join(current, source)
+            target = join_path(current, source)
             if target is None:
                 message = f"{current}: module source {source!r} leaves the repository"
                 raise StacksError(message)
@@ -59,77 +54,31 @@ def module_sources(root: Path, directory: str) -> list[str]:
         raise StacksError(message)
     if not path.is_dir():
         return []
-    files = sorted({file for pattern in SOURCE_PATTERNS for file in path.glob(pattern)})
+    files = sorted({file for pattern in CONFIG_PATTERNS for file in path.glob(pattern)})
     sources: list[str] = []
     for file in files:
         where = f"{directory}/{file.name}"
         if file.is_symlink():
             message = f"{where}: stack and module files must not be symlinks"
             raise StacksError(message)
-        if file.is_file():
-            text = _read(file, where)
-            found = (
-                _json_sources(text, where) if file.suffix == ".json" else _hcl_sources(text, where)
-            )
-            sources.extend(source for source in found if source.startswith(LOCAL_PREFIXES))
+        if not file.is_file():
+            continue
+        config = load_config(file, where)
+        for (name,), body in config.blocks("module", 1):
+            source = config.literal(body.get("source"))
+            if source is None:
+                message = f"{where}: module {name}: source must be a literal string"
+                raise StacksError(message)
+            if source.startswith(LOCAL_PREFIXES):
+                sources.append(source)
     return sources
 
 
-def _read(file: Path, where: str) -> str:
-    try:
-        return file.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as error:
-        message = f"{where}: can't be read ({error})"
-        raise StacksError(message) from error
+def join_path(base: str, relative: str) -> str | None:
+    """Resolve ``relative`` against the repo-relative ``base``.
 
-
-def _hcl_sources(text: str, where: str) -> list[str]:
-    try:
-        document = hcl2.loads(text)
-    except LarkError as error:
-        message = f"{where}: isn't valid HCL"
-        raise StacksError(message) from error
-    return [
-        _hcl_literal(body.get("source", ""), f"{where}: module {name}")
-        for block in document.get("module", [])
-        for name, body in block.items()
-    ]
-
-
-def _hcl_literal(value: object, where: str) -> str:
-    """python-hcl2 returns string literals with their quotes and expressions without."""
-    text = str(value)
-    if len(text) > 1 and text.startswith('"') and text.endswith('"') and "${" not in text:
-        return text[1:-1]
-    message = f"{where}: source {text} must be a literal string the pipeline can follow"
-    raise StacksError(message)
-
-
-def _json_sources(text: str, where: str) -> list[str]:
-    try:
-        document = json.loads(text)
-        section = document.get("module", {})
-        entries = section if isinstance(section, list) else [section]
-        return [
-            _json_literal(body.get("source", ""), f"{where}: module {name}")
-            for entry in entries
-            for name, bodies in entry.items()
-            for body in (bodies if isinstance(bodies, list) else [bodies])
-        ]
-    except (json.JSONDecodeError, AttributeError) as error:
-        message = f"{where}: isn't a valid OpenTofu JSON configuration"
-        raise StacksError(message) from error
-
-
-def _json_literal(value: object, where: str) -> str:
-    if isinstance(value, str) and value and "${" not in value:
-        return value
-    message = f"{where}: source {value!r} must be a literal string the pipeline can follow"
-    raise StacksError(message)
-
-
-def _join(base: str, relative: str) -> str | None:
-    """Resolve ``relative`` against ``base``; ``None`` if the result leaves the repository."""
+    Returns ``None`` if the result leaves the repository.
+    """
     parts: list[str] = []
     for part in (*PurePosixPath(base).parts, *PurePosixPath(relative).parts):
         if part != "..":

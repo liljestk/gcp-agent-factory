@@ -189,7 +189,7 @@ class TestLocalModules:
             ("a.tf.json", '{"module": {"j": {"source": 5}}}', "must be a literal string"),
             ("a.tf.json", "{not json", "isn't a valid OpenTofu JSON configuration"),
             ("a.tf.json", '["not", "an", "object"]', "isn't a valid OpenTofu JSON"),
-            ("a.tf.json", '{"module": {"j": "text"}}', "isn't a valid OpenTofu JSON"),
+            ("a.tf.json", '{"module": {"j": "text"}}', "module blocks have an unexpected shape"),
         ],
     )
     def test_fails_closed_on_what_it_cannot_follow(

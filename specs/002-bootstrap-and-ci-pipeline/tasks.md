@@ -4,7 +4,11 @@ Work through in order. Tick a task only when its tests pass under `just check`.
 
 - [x] 1. Write the `.feature` scenarios tagged with the requirement IDs (`platforms/landing-zone/tests/features/`)
 - [x] 2. `libs/stacks` + `platforms/stacks.yaml`: move the in-process `pipeline` scenarios next to the code, write unit tests at 100%, then the code (module expansion, "all stacks" paths, trust-root modes, tiers) (REQ-LZ-005/006)
-- [ ] 3. `repo-checks encryption` and `repo-checks tofu-safety`: move the `safety` scenarios, write unit tests, then the checks (REQ-LZ-003/012). Reuse the HCL parsing from `libs/stacks`, and also flag `file()`, `templatefile()` and `fileset()` paths that leave the module directory unless the stack declares them in `inputs`
+- [x] 3. `repo-checks encryption` and `repo-checks tofu-safety`: move the `safety` scenarios, write unit tests, then the checks (REQ-LZ-003/012). Reuse the HCL parsing from `libs/stacks`, and also flag `file()`, `templatefile()` and `fileset()` paths that leave the module directory unless the stack declares them in `inputs`. Follow-ups from the review:
+  - match a file read only against the `inputs` of the stacks that actually use its directory
+  - require a committed lock file for every stack that uses a provider
+  - reject `TF_ENCRYPTION` in workflows (task 7)
+  - leaks through attacker-owned GCP resources are VPC-SC's job (spec 004)
 - [ ] 4. `modules/kms`, `modules/project`, `modules/wif-github`, each with `tofu test`: plan and deploy gates evaluated against claim fixtures, labels, lien, rotation (`# covers:` REQ-LZ-001/002/003/009)
 - [ ] 5. `bootstrap` stack with `tofu test` on mock providers (REQ-LZ-004/010/011):
   - folders and the per-identity role allow-list per scope

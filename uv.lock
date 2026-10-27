@@ -501,10 +501,14 @@ version = "0.1.0"
 source = { editable = "libs/repo-checks" }
 dependencies = [
     { name = "pyyaml" },
+    { name = "stacks" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pyyaml", specifier = ">=6.0" }]
+requires-dist = [
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "stacks", editable = "libs/stacks" },
+]
 
 [[package]]
 name = "ruff"
