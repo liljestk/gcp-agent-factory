@@ -68,6 +68,12 @@ def no_findings(workspace: Workspace) -> None:
     assert workspace.rendered() == []
 
 
+@then(parsers.parse('no findings are reported for "{path}"'))
+def no_findings_for(workspace: Workspace, path: str) -> None:
+    rendered = workspace.rendered()
+    assert not [line for line in rendered if line.startswith(path)], rendered
+
+
 @then(parsers.parse('a finding for "{path}" mentions "{text}"'))
 def finding_mentions(workspace: Workspace, path: str, text: str) -> None:
     rendered = workspace.rendered()

@@ -1,7 +1,7 @@
 # Agentic Demo Platform on GCP — Monorepo Plan
 
 > Status: **DRAFT v0.2** (2026-10-23) — planning only, nothing provisioned yet.
-> Decisions confirmed so far: Cloud Identity Free org · region `europe-north1` · public GitHub repo [`liljestk/gcp-agent-factory`](https://github.com/liljestk/gcp-agent-factory) · dev + prod with 5 projects · platform name **gcp-agent-factory** (naming rules in §4.0).
+> Decisions confirmed so far: the owner's existing sandbox org with identity domain `smartass.dad` (ADR-0017, proposed) · region `europe-north1` · public GitHub repo [`liljestk/gcp-agent-factory`](https://github.com/liljestk/gcp-agent-factory) · dev + prod with 5 projects · platform name **gcp-agent-factory** (naming rules in §4.0).
 > Project IDs in this doc leave out their 4-char suffix for readability: `gcp-agent-factory-prod` means `gcp-agent-factory-prod-<sfx>`.
 
 ---
@@ -21,7 +21,7 @@
 - All infrastructure in **OpenTofu**. No click-ops except the few bootstrap steps GCP can't automate (listed in §12).
 - Aligned with the **Google Cloud Well-Architected Framework** (6 pillars plus the AI/ML perspective). The control mapping is in §11.
 - **GitHub + GitHub Actions** for fully automated deployment, using keyless auth (Workload Identity Federation).
-- **$300 / 90-day free trial**: target ≤ $15/month idle and ≤ $60/month during active build/demo (§9).
+- **€264 / 90-day free trial** ($300 nominal, EUR billing account, 2026-10-24 → 2027-01-22): target ≤ €13/month idle and ≤ €53/month during active build/demo (§9).
 - Secure coding, strict linting, **100% coverage** on code, **BDD** acceptance tests, and agent evals.
 - Robust, modular, stateless and idempotent, with durable execution and recovery.
 
@@ -52,6 +52,7 @@
 | 0014 | Data products | **ODCS** (Open Data Contract Standard) YAML contracts + Dataform + BigQuery; dogfood the platform's own data first | Free transformation tool; contracts are testable in CI |
 | 0015 | Model endpoint | Gemini on **Vertex AI** (Flash-tier by default, model set per agent in its manifest), EU endpoint where available | Request labels give per-agent cost attribution, which the AI Studio API doesn't |
 | 0016 | Dev workflow | Spec-driven: `AGENTS.md` (canonical) + `CLAUDE.md` + `DESIGN.md` + `specs/*/{requirements,design,tasks}.md` + skills | Humans and coding agents share one source of truth |
+| 0017 | Organization | The owner's existing **sandbox org**; groups and identities on `smartass.dad` | No domain to buy, DNS stays on Cloudflare, and the org holds nothing else for the guardrails to hit |
 
 ---
 
@@ -89,7 +90,8 @@
 │
 ├── platforms/
 │   ├── landing-zone/          # (2) org, folders, org policies, projects, network, IAM, budgets, app templates
-│   │   ├── infra/bootstrap/   # run ONCE locally: seed project, state bucket, KMS, WIF, CI SAs, Artifact Registry
+│   │   ├── infra/bootstrap/   # trust root, applied locally by the owner (ADR-0018): top-level folders, seed project, state bucket, KMS, WIF, CI SAs, org IAM
+│   │   ├── infra/github/      # trust root, applied locally: environments, ruleset, CI variables
 │   │   ├── infra/foundation/  # org policies, folders, tags, projects, budgets, quotas
 │   │   ├── infra/network/     # per-env VPC, subnets, DNS (restricted VIP), firewall, VPC-SC
 │   │   └── templates/app-cloudrun/   # copier template for vended apps
@@ -134,7 +136,8 @@ Everything derives from the repo name **`gcp-agent-factory`**. The short alias *
 | Thing | Pattern | Example / note |
 |---|---|---|
 | GitHub repo | `liljestk/gcp-agent-factory` | public · `repository_id=1431415117` · `repository_owner_id=4373495` (pinned in the WIF condition, §5.1) |
-| Organization | the Cloud Identity **primary domain** *is* the org name | GCP can't name an org separately from its domain. Candidates derived from the repo name (unregistered per RDAP on 2026-10-23): `gcp-agent-factory.dev` / `.com` / `.cloud` (see note below) |
+| Organization | the owner's existing sandbox org, named after that account's **primary domain** | GCP can't name an org separately from its primary domain, so this one name doesn't derive from the repo. The repo refers to it only by `org_id` and `customer_id` (ADR-0017) |
+| Identity domain | `smartass.dad` | a secondary domain of the same account (DNS on Cloudflare); groups and the break-glass account live on it, e.g. `gcp-org-admins@smartass.dad` |
 | Core project IDs | `gcp-agent-factory-<role>-<sfx>` | `gcp-agent-factory-prod-k3x9`: 27 chars, under the 30-char limit |
 | Project display names | `gcp-agent-factory <role>` | `gcp-agent-factory prod` |
 | App project IDs | `gaf-app-<name>-<sfx>` | the full name would leave only 3 chars for `<name>` |
@@ -144,17 +147,16 @@ Everything derives from the repo name **`gcp-agent-factory`**. The short alias *
 | Labels | `repo=gcp-agent-factory` on every resource | plus the taxonomy in §9.1 |
 | Folders | `shared`, `dev`, `prod` | display names under the org |
 
-Note on the domain: a domain that contains "gcp" may run into Google's trademark and brand guidelines. If you'd rather avoid that, use a neutral domain or a subdomain you already control (e.g. `agent-factory.<your-domain>`); nothing else in the naming changes.
-
 ### 4.1 Resource hierarchy
 
 ```mermaid
 graph TD
-  ORG["Organization (Cloud Identity Free, your domain)"]
+  ORG["Organization (existing sandbox org, ADR-0017)"]
+  ORG --> FT["folder: trust-root"]
   ORG --> FS["folder: shared"]
   ORG --> FD["folder: dev"]
   ORG --> FP["folder: prod"]
-  FS --> SEED["gcp-agent-factory-seed<br/>tofu state · KMS(state) · WIF · CI SAs · Artifact Registry"]
+  FT --> SEED["gcp-agent-factory-seed<br/>tofu state · KMS(state) · WIF · CI SAs"]
   FS --> OPS["gcp-agent-factory-ops<br/>metrics scope · log buckets · billing export · budget-enforcer · incident-router · SRE/FinOps agents"]
   FD --> DEV["gcp-agent-factory-dev<br/>agents · data · shared-tenancy apps"]
   FD --> APP["gaf-app-&lt;name&gt;<br/>dedicated-tenancy demo app"]
@@ -162,7 +164,7 @@ graph TD
 ```
 
 - **Org-level tags**: `env` (shared|dev|prod) bound to folders. They're used in IAM conditions and conditional org policies.
-- **Groups instead of users** (Cloud Identity Free supports groups): `gcp-org-admins`, `gcp-billing-admins`, `gcp-platform-engineers`, `gcp-security-reviewers`, `gcp-viewers`. Plus one documented **break-glass** account.
+- **Groups instead of users**, on `smartass.dad`: `gcp-org-admins`, `gcp-billing-admins`, `gcp-platform-engineers`, `gcp-security-reviewers`, `gcp-viewers`. Plus one documented **break-glass** account. They are security groups that only admit members of the account, because `iam.allowedPolicyMemberDomains` doesn't look inside groups. `smartass.dad` mail goes to AWS SES, not Google, so these group addresses receive no mail; essential contacts, budget emails and alerts go to one notification address that SES delivers (ADR-0017).
 - **App tenancy tiers**: (a) *shared*, where an app runs in the dev/prod project with its own SA, labels and budget filter (default, cheap); (b) *dedicated*, where the app gets its own project via the project factory (shown with one app, and grows when quota allows).
 
 ### 4.2 Org policies (managed by OpenTofu, rolled out with `dry_run_spec` first)
@@ -220,7 +222,7 @@ flowchart LR
   A --> PR2[Apply prod → canary 10% → 100%<br/>auto-rollback on SLO burn]
 ```
 
-- **Change detection**: path filters build a matrix of affected uv packages and tofu stacks. Stacks apply in dependency order: `bootstrap → foundation → network → ops → data → agents → apps`.
+- **Change detection**: path filters build a matrix of affected uv packages and tofu stacks. The owner applies the trust-root stacks `bootstrap` and `github` locally (ADR-0018); CI applies the rest in dependency order: `foundation → network → ops → data → agents → apps`.
 - **Concurrency groups** per `stack × env`; GCS state locking.
 - **PR previews at $0**: deploy a Cloud Run revision with `--tag pr-<n> --no-traffic` in dev, which gives a unique URL and no idle cost.
 - **Scheduled workflows**: `drift` (nightly `plan -detailed-exitcode` → issue), `finops-report` (weekly), `chaos` (monthly game day), `janitor` (old revisions, images, temp datasets).
@@ -342,7 +344,7 @@ Principle: **agents propose, pipelines dispose.** Any change to infra or runtime
 - **`gcp-agent-factory-ops` is the Cloud Monitoring metrics scope** for seed, dev and prod.
 - **Logging**: an org aggregated sink → log bucket in ops (30-day retention, Log Analytics, linked BigQuery dataset); exclusion filters for noisy logs; Data Access audit logs on only for IAM, KMS and Secret Manager in prod.
 - **Billing export** (standard + detailed + pricing) → BigQuery in ops.
-- **As code**: dashboards (Platform, Agent fleet, Data freshness/DQ, FinOps burn-down vs $300, Pub/Sub/DLQ), alert policies (kept lean, since alert conditions are billed), and SLOs per agent and per data product (availability, latency, DLQ depth, freshness, budget burn rate).
+- **As code**: dashboards (Platform, Agent fleet, Data freshness/DQ, FinOps burn-down vs the €264 credit, Pub/Sub/DLQ), alert policies (kept lean, since alert conditions are billed), and SLOs per agent and per data product (availability, latency, DLQ depth, freshness, budget burn rate).
 - **Tracing**: ADK OpenTelemetry → Cloud Trace (OTLP), correlated with logs. Error Reporting is on.
 
 ### 7.4 Incident flow (agentic ops)
@@ -418,26 +420,28 @@ Enforced by `modules/labels` (one source), a **conftest** policy on plans, and a
 
 ### 9.2 Budgets (alert thresholds 25/50/75/90/100%)
 
+Amounts are in EUR: a budget must use its billing account's currency, and the trial credit is €264. Every budget tracks **gross cost** (`credit_types_treatment = EXCLUDE_ALL_CREDITS`): by default credits are subtracted, so during the trial spend would stay at €0 and L2/L3 would never fire. The billing-account budget comes from `bootstrap`, so it exists from the first apply; the project budgets come from `foundation`.
+
 | Scope | Monthly cap | Notes |
 |---|---|---|
-| Billing account total | **$100** | keeps 90-day spend ≤ $300 with buffer |
-| `gcp-agent-factory-dev` | $40 | L2 at 90%, L3 at 110% |
-| `gcp-agent-factory-prod` | $40 | L2 at 90%, L3 at 110% |
-| `gcp-agent-factory-ops` | $15 | alert only (no billing detach, or we'd lose the kill switch itself) |
-| `gcp-agent-factory-seed` | $5 | alert only |
+| Billing account total | **€85** | keeps 90-day spend ≤ €264 with buffer |
+| `gcp-agent-factory-dev` | €34 | L2 at 90%, L3 at 110% |
+| `gcp-agent-factory-prod` | €34 | L2 at 90%, L3 at 110% |
+| `gcp-agent-factory-ops` | €13 | alert only (no billing detach, or we'd lose the kill switch itself) |
+| `gcp-agent-factory-seed` | €4 | alert only |
 | per agent / per app | from manifest | label-filtered budget → alert + L0 |
 
 ### 9.3 Expected cost (approximate; verify with the pricing calculator during Phase 1)
 
-| Item | Idle / month | Why it stays low |
+| Item | Idle / month (EUR) | Why it stays low |
 |---|---|---|
-| Cloud Run, Pub/Sub, Workflows, Cloud Tasks, Firestore `(default)` | ~$0 | scale-to-zero plus free tiers |
-| BigQuery, GCS | $0–2 | free tiers + byte caps + lifecycle rules |
-| Cloud KMS (~10–15 key versions) | ~$1 | |
-| Cloud DNS private zones (~4) | ~$1 | |
-| Artifact Registry | <$1 | cleanup policies |
-| Logging / Monitoring | $0–3 | exclusions, 30-day retention, lean alerts |
-| VPC-SC, org policies, IAM, Cloud Identity Free | $0 | |
+| Cloud Run, Pub/Sub, Workflows, Cloud Tasks, Firestore `(default)` | ~€0 | scale-to-zero plus free tiers |
+| BigQuery, GCS | €0–2 | free tiers + byte caps + lifecycle rules |
+| Cloud KMS (~10–15 key versions) | ~€1 | |
+| Cloud DNS private zones (~4) | ~€1 | |
+| Artifact Registry | <€1 | cleanup policies |
+| Logging / Monitoring | €0–3 | exclusions, 30-day retention, lean alerts |
+| VPC-SC, org policies, IAM, Cloud Identity (existing account) | €0 | |
 | **Gemini tokens** | usage | **the main variable**: Flash-tier default, daily caps per agent |
 
 **Avoid list (fixed-cost traps)**: Cloud NAT, any load balancer / forwarding rule, Serverless VPC Access connectors, PSC endpoints, Cloud SQL / AlloyDB / Memorystore, GKE node pools, Composer, Dataflow, Dataproc, Vertex AI online prediction or Vector Search endpoints, Agent Engine with min instances, SCC Premium, Cloud Armor, long log retention, high-cardinality custom metrics, extra Firestore databases (no free tier).
@@ -494,24 +498,33 @@ Subagents (`.claude/agents/`): `tofu-reviewer`, `security-reviewer`, `finops-rev
 
 ## 12. Roadmap
 
-| Phase | Scope | Exit criteria | GCP spend |
+| Phase | Scope | Exit criteria | GCP spend (€/month at phase end) |
 |---|---|---|---|
-| **0 Repo foundations** | git + public GitHub repo with rulesets; mise, devcontainer, just, uv workspace, pre-commit; AGENTS/CLAUDE/DESIGN.md, skills, subagents; ADRs 0001–0016; CI quality gates on a skeleton | `just check` green locally and in CI; coverage gate active | $0 |
-| **1 Bootstrap + landing zone** | manual prerequisites (below); local `bootstrap` apply → state migrated to GCS; `foundation` + `network` via CI; budgets + **budget-enforcer before any workload** | CI applies the foundation; `@security` scenarios pass (key creation denied, public bucket denied, budget alert → Pub/Sub) | ~$1–3 |
-| **2 Ops baseline** | sinks, metrics scope, billing export dataset, dashboards/alerts/SLO modules, incident-router → GitHub issue | synthetic alert → incident issue end to end | ~$1–3 |
-| **3 Agents core** | `agent-core`, `events`, registry + `agent-service`, Pub/Sub + Workflows modules; `orchestrator` + `finops-analyst`; A2A; evals | BDD: delegation, exactly-once effect under duplicate delivery, kill switch, budget suspend, poison → DLQ; per-agent cost visible | ~$5–15 |
-| **4 Data platform** | buckets/datasets, Dataform, `data-product` module + ODCS, 4 products, `data-analyst` agent | contracts validated in CI; freshness SLOs; row/column security honored (BDD) | ~$2–5 |
-| **5 Agentic ops** | `sre` agent, ChatOps approvals → remediation workflows, game days, FinOps weekly loop | game-day scenarios pass; MTTR recorded | ~$5–10 |
-| **6 App landing** | copier template, `app-tenant` + project factory, `app-builder` agent | demo: "build me an X app" → PR → merge → running behind IAP, labeled, budgeted, observable | ~$5–10 |
+| **0 Repo foundations** | git + public GitHub repo with rulesets; mise, devcontainer, just, uv workspace, pre-commit; AGENTS/CLAUDE/DESIGN.md, skills, subagents; ADRs 0001–0016; CI quality gates on a skeleton | `just check` green locally and in CI; coverage gate active | €0 |
+| **1 Bootstrap + landing zone** | manual prerequisites (below); local `bootstrap` apply → state migrated to GCS; `foundation` + `network` via CI; budgets + **budget-enforcer before any workload**. Specs: [002](../specs/002-bootstrap-and-ci-pipeline/requirements.md) bootstrap + CI pipeline, then 003 foundation, 004 network, 005 budget-enforcer | CI applies the foundation; `@security` scenarios pass (key creation denied, public bucket denied, budget alert → Pub/Sub) | ~€1–3 |
+| **2 Ops baseline** | sinks, metrics scope, billing export dataset, dashboards/alerts/SLO modules, incident-router → GitHub issue | synthetic alert → incident issue end to end | ~€1–3 |
+| **3 Agents core** | `agent-core`, `events`, registry + `agent-service`, Pub/Sub + Workflows modules; `orchestrator` + `finops-analyst`; A2A; evals | BDD: delegation, exactly-once effect under duplicate delivery, kill switch, budget suspend, poison → DLQ; per-agent cost visible | ~€4–13 |
+| **4 Data platform** | buckets/datasets, Dataform, `data-product` module + ODCS, 4 products, `data-analyst` agent | contracts validated in CI; freshness SLOs; row/column security honored (BDD) | ~€2–4 |
+| **5 Agentic ops** | `sre` agent, ChatOps approvals → remediation workflows, game days, FinOps weekly loop | game-day scenarios pass; MTTR recorded | ~€4–9 |
+| **6 App landing** | copier template, `app-tenant` + project factory, `app-builder` agent | demo: "build me an X app" → PR → merge → running behind IAP, labeled, budgeted, observable | ~€4–9 |
 | **7 Hardening (optional)** | enforce VPC-SC + CMEK in prod, Temporal adapter, Agent Engine target + Agent Identity, Model Armor, DR drill | per item | varies |
+
+**Pacing**: the free trial runs 2026-10-24 → 2027-01-22. Time is the constraint, not credit: phases 1–6 together estimate well under the €264. Target end dates:
+
+| Phase | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| Done by | 2026-11-08 | 2026-11-15 | 2026-12-06 | 2026-12-20 | 2027-01-03 | 2027-01-15 |
+
+The last week is buffer and the keep-or-tear-down decision. When the trial ends, Google stops the resources and deletes them about 30 days later unless the account is upgraded.
 
 **Manual prerequisites (Phase 1, documented in `docs/runbooks/bootstrap.md`)**
 
-1. Register or pick the org domain (§4.0) → verify it via a DNS TXT record → create the **Cloud Identity Free** org → create the groups above.
-2. Link the free-trial billing account to the org (**don't upgrade to paid** while the trial runs; that keeps L4).
-3. Enable **billing export to BigQuery** in the console (this can't be automated; the dataset itself comes from tofu).
-4. Create a GitHub App for `incident-router` / `app-builder` (Phase 2/6); its key goes into Secret Manager.
-5. Run `platforms/landing-zone/infra/bootstrap` once with your own credentials; everything after that runs through CI.
+1. Verify `smartass.dad` in the existing Google account via a DNS TXT record (done) → take stock of what the org already holds (projects, folders, IAM, policies, access policies, tag keys, sinks, contacts) and of every project linked to the billing account (the trial sign-up often creates one outside the org; unlink what doesn't belong) → create the groups above on `smartass.dad`, closed to outside members → require security keys or passkeys for every super admin and the break-glass account (ADR-0017).
+2. From the personal account that owns the free-trial billing account, grant `gcp-billing-admins@smartass.dad` Billing Account Administrator, and protect that account with a security key or passkey (**don't upgrade to paid** while the trial runs; that keeps L4).
+3. Set up one notification address on `smartass.dad` that SES delivers to an inbox you read, and send it a test message (ADR-0017).
+4. Enable **billing export to BigQuery** in the console as a `gcp-billing-admins` member (this can't be automated; the dataset itself comes from tofu).
+5. Create a GitHub App for `incident-router` / `app-builder` (Phase 2/6); its key goes into Secret Manager.
+6. Apply `platforms/landing-zone/infra/bootstrap`, then `github`, locally with your own credentials (an identity in the org, not the personal billing owner), following spec 002's first run. These trust-root stacks stay owner-applied (ADR-0018); every other stack runs through CI.
 
 ---
 
@@ -523,6 +536,7 @@ These items move fast or weren't confirmable from current sources:
 - **Gemini model availability** in `europe-north1` vs other EU regions vs `global`; this decides ADR 0015.
 - **IAP directly on Cloud Run**: launched as Preview in 2025; confirm GA status.
 - **Free-trial quotas**: the actual project and billing-linked-project limits (Console → IAM & Admin → Quotas).
+- **Free-trial billing account**: whether it can move into the org without losing the credit (ADR-0017 keeps it outside until this is known).
 - **Agent Engine Agent Identity**: currently documented as recommended for test environments only, and it requires an org.
 - **Vertex request label rules** (key format, per-request cap) and whether newer Gemini models use dynamic shared quota, in which case per-project quota overrides won't apply and in-app budgets become the only rate cap.
 - **Pricing** for Monitoring alert conditions, Model Armor and the Agent Engine free tier.
@@ -533,9 +547,10 @@ Resolved:
 
 - Name and prefix: `gcp-agent-factory` (alias `gaf`), see §4.0.
 - Repo: `liljestk/gcp-agent-factory`, public, empty and owned by a user account (created 2026-10-23).
+- Org: the owner's existing sandbox org, identity domain `smartass.dad` (ADR-0017, proposed, 2026-10-25). The free trial runs on a billing account owned by the owner's personal Google account, outside the org.
+- Free trial: started 2026-10-24, ends 2027-01-22, €264 credit. The billing account's currency is EUR, so budgets are in EUR (§9.2).
 
 Still needed:
 
-- **Before Phase 1**: the org domain (register one of the §4.0 candidates, or use a domain or subdomain you control).
-- **Before Phase 1**: the free-trial **start date** (the 90-day clock drives the roadmap pacing).
-- Phase 0 needs neither.
+- **Before the first bootstrap run**: the org ID and directory customer ID (stack inputs).
+- Phase 0 doesn't need it.

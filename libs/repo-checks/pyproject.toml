@@ -5,7 +5,7 @@ description = "Machine checks for gcp-agent-factory repository conventions (skil
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.13,<3.14"
-dependencies = ["pyyaml>=6.0"]
+dependencies = ["pyyaml>=6.0", "stacks"]
 
 [project.scripts]
 repo-checks = "repo_checks.cli:main"
