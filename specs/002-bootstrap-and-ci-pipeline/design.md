@@ -83,28 +83,43 @@ The exact permission list is checked against what deny policies support during i
 
 **Org-level IAM** follows one rule: each role is managed in exactly one mode.
 
-- **Authoritative** (one binding per role, listing every member, groups included): every role a CI identity holds, plus Project Creator (`gcp-org-admins` only) and Billing Account Creator (nobody). Folder IAM on `trust-root`, `shared`, `dev` and `prod` and the seed's admin roles (Owner, Editor, Storage Admin, Cloud KMS Admin, Workload Identity Pool Admin, Service Account Admin, Service Account Token Creator, all held by `gcp-org-admins`) work the same way.
+- **Authoritative** (one binding per role, listing every member, groups included): every role a CI identity holds, plus Project Creator (`gcp-org-admins` only) and Billing Account Creator (nobody). Folder IAM on `trust-root`, `shared`, `dev` and `prod` and the seed's admin roles (Owner, Editor, Storage Admin, Cloud KMS Admin, Workload Identity Pool Admin and Service Account Admin, all held by `gcp-org-admins`; no human or group gets Service Account Token Creator, which every CI identity would inherit) work the same way.
 - **Additive**: only for roles no CI identity holds. These are Organization Administrator and Folder Creator for `gcp-org-admins`, and Billing Account Administrator, which stays additive so the personal owner can't be locked out.
 
 Before the first apply, the authoritative list is compared with the org inventory (ADR-0017), so no existing holder disappears by surprise.
 
-**WIF.** The provider condition pins `repository_id` and `repository_owner_id`. Two mapped attributes gate the bindings:
+**WIF.** The expressions live in [`modules/wif-github/gates.json.tftpl`](../../modules/wif-github/gates.json.tftpl). Two mapped attributes gate the bindings:
 
 ```text
 attribute.plan   = ((assertion.actor_id == '4373495' && assertion.event_name in ['pull_request', 'workflow_dispatch'])
                     || (assertion.ref == 'refs/heads/main' && assertion.event_name in ['push', 'schedule', 'workflow_dispatch']))
                    ? 'allowed' : 'denied'
-attribute.deploy = (assertion.ref == 'refs/heads/main'
+attribute.deploy = (assertion.event_name == 'push'
+                    && assertion.ref == 'refs/heads/main'
                     && assertion.job_workflow_ref == 'liljestk/gcp-agent-factory/.github/workflows/tofu.yml@refs/heads/main'
+                    && assertion.workflow_ref == assertion.job_workflow_ref
                     && assertion.runner_environment == 'github-hosted'
                     && 'environment' in assertion)
                    ? assertion.environment : 'none'
 ```
 
+The provider condition pins `repository_id` and `repository_owner_id`, and also requires `attribute.plan == 'allowed' || attribute.deploy != 'none'`. A token that passes neither gate is refused at the exchange, before any binding is consulted.
+
 - `ci-plan` is bound to `attribute.plan/allowed`.
 - Each apply identity is bound to `attribute.deploy/<environment>`.
+- `none` can't be used as an environment name.
 
-So a branch, another workflow file, a bot's PR or a missing environment never reaches an apply identity. A bot's PR reaches `ci-plan` only when the owner dispatches the run. How WIF treats a missing claim or a mapping error is checked during implementation.
+So these never reach an apply identity:
+
+- a branch
+- another workflow file, or a workflow that calls `tofu.yml`
+- any event other than a push to `main` (`pull_request_target`, `issue_comment`, `workflow_run`, dispatches, schedules)
+- a self-hosted runner
+- a job without an environment
+
+A bot's PR reaches `ci-plan` only when the owner triggers an event on it, for example a dispatch, a push, *Update branch* or a reopen. No claim names the PR author. `tests/iac/test_wif_gates.py` evaluates the same template against token claims for each of these cases.
+
+Missing claims fail closed. The deploy gate is a chain of ANDs with `environment` guarded by `in`, so an error can't produce an environment. The plan gate's two clauses only lose an error to a clause that is itself a legitimate allow. A missing claim in the condition rejects the token.
 
 ## State layout
 
@@ -261,7 +276,7 @@ Net: about +€0.30/month idle and ~€0 per run (approx.). Budget: the €85 gr
 
 - **Domain restriction already enforced**: if the org already enforces Google's default `iam.allowedPolicyMemberDomains` (orgs created since May 2024 do), the WIF principal sets or the GCS service agent may be refused. The inventory reveals this. If so, `bootstrap` sets the managed `iam.managed.allowedPolicyMembers`, and spec 003 takes it over with `removed` and `import` blocks, so the constraint never has two owners.
 - **Things to verify during implementation**:
-  - the CEL mapping behaviour (missing claims, the `in` operator)
+  - that OpenTofu's `gcp_kms` key provider can read state with decrypt-only access. If it also calls Encrypt when it reads, the decrypt-only rows above become encrypt/decrypt on the other scopes' keys, and the matching `state.feature` rows change
   - which permissions deny policies support
   - whether the default `GITHUB_TOKEN` can read environment protection rules and rulesets
   - the first-run encryption sequence

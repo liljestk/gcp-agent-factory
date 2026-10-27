@@ -42,8 +42,9 @@ Related ADRs:
 
 #### Acceptance criteria
 
-- `ci-foundation`, `ci-apply-dev` and `ci-apply-prod` are reachable only from a GitHub-hosted job of `.github/workflows/tofu.yml` at `refs/heads/main`, in the `foundation`, `dev` and `prod` environment respectively.
-- `ci-plan` is reachable only from pull-request or manually dispatched runs started by the owner, and from push, schedule or dispatch runs on `main`. A bot's pull request gets a plan when the owner dispatches one.
+- `ci-foundation`, `ci-apply-dev` and `ci-apply-prod` are reachable only from a GitHub-hosted job of a push run of `.github/workflows/tofu.yml` itself (not a caller) at `refs/heads/main`, in the `foundation`, `dev` and `prod` environment respectively.
+- A token that passes neither gate is refused at the token exchange.
+- `ci-plan` is reachable only from pull-request or manually dispatched runs started by the owner, and from push, schedule or dispatch runs on `main`. A bot's pull request gets a plan only when the owner triggers an event on it, for example a dispatch or *Update branch*.
 - No human or group holds Workload Identity User or Service Account Token Creator on a CI identity.
 
 **Verified by**: `platforms/landing-zone/tests/features/identity.feature` (tag `@REQ-LZ-002`)
@@ -163,7 +164,7 @@ Related ADRs:
 
 - The seed project ID is `gcp-agent-factory-seed-<sfx>`, and the 4-character suffix is generated once and kept in state.
 - Every labelable resource `bootstrap` creates (project, keys, bucket) carries the standard labels from `modules/labels`.
-- The seed has no VPC network and enables exactly the APIs listed in the design.
+- The seed has no VPC network. It enables the APIs listed in the design, and no others apart from Google's defaults for new projects.
 - After the first run and the state migration, `bootstrap` plans empty and no local state file is left.
 
 **Verified by**: `platforms/landing-zone/tests/features/bootstrap.feature` (tag `@REQ-LZ-009`)

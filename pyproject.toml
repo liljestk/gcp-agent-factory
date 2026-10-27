@@ -10,6 +10,7 @@ dependencies = ["repo-checks", "stacks"]
 
 [dependency-groups]
 dev = [
+  "cel-python>=0.2",
   "mypy>=1.13",
   "pre-commit>=4.0",
   "pytest>=8.3",
