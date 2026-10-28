@@ -3,13 +3,13 @@
 # Python itself is managed by uv from .python-version.
 
 [tools]
-uv = "0.13.1"
+uv = "0.13.4"
 just = "1.59.0"
-opentofu = "1.13.1"
+opentofu = "1.13.2"
 tflint = "0.64.0"
 actionlint = "1.7.12"
 shellcheck = "0.11.0"
 zizmor = "1.31.1"
 gitleaks = "8.30.1"
-node = "24.22.0"
-"npm:markdownlint-cli2" = "0.23.3"
+node = "24.22.1"
+"npm:markdownlint-cli2" = "0.24.0"
