@@ -61,7 +61,7 @@ Each CI identity holds exactly these roles. The `bootstrap` tests pin them as an
 
 | Identity | Org | `shared`, `dev`, `prod` | Seed | Billing account | State keys |
 |---|---|---|---|---|---|
-| `ci-plan` | Browser, Security Reviewer, Deny Reviewer, Organization Policy Viewer, Folder Viewer, Tag Viewer | (inherited viewers) | Service Usage Consumer; viewers for KMS, WIF pools, service accounts, Service Usage, bucket metadata | Billing Account Viewer | encrypt/decrypt on all four (plans are encrypted too) |
+| `ci-plan` | Browser, Security Reviewer, Deny Reviewer, Organization Policy Viewer, Folder Viewer, Tag Viewer | (inherited viewers) | Service Usage Consumer; viewers for KMS, WIF pools, service accounts and Service Usage. Bucket metadata comes from the bucket's own Legacy Bucket Reader grant | Billing Account Viewer | encrypt/decrypt on all four (plans are encrypted too) |
 | `ci-foundation` | Organization Policy Administrator, Tag Admin, Essential Contacts Admin | Folder Admin, Project Creator, Billing Project Manager, Tag User | Service Usage Consumer | Billing Account User, Billing Account Costs Manager | `shared` encrypt/decrypt; `trust-root` decrypt |
 | `ci-apply-dev` | none | none (003 grants project roles in `gcp-agent-factory-dev`) | Service Usage Consumer | none | `dev` encrypt/decrypt; `shared`, `trust-root` decrypt |
 | `ci-apply-prod` | none | none (003 grants project roles in `gcp-agent-factory-prod`) | Service Usage Consumer | none | `prod` encrypt/decrypt; `shared`, `trust-root` decrypt |
@@ -70,21 +70,41 @@ API quota is charged to the seed (`billing_project` + `user_project_override`).
 
 Org Policy Administrator, Tag Admin and Essential Contacts Admin can only be granted at org level, or are only useful there, so they reach the seed by inheritance. The worst they allow there is denial of service or redirected notices, not access. Drift detection and the deny policy limit them. Tag Admin can't bind a tag to the seed, because that also needs a role on the seed. Spec 003 will keep tag-conditional IAM grants off the org level for the same reason.
 
-**The deny policy on `trust-root`** names the four CI service accounts. It denies the permissions that would change:
+**The deny policy on `trust-root`** has two rules. The first names the four CI service accounts. It denies the permissions that would change:
 
-- IAM on the folder, the seed project, its service accounts, keys and bucket
-- service-account tokens and keys
-- the WIF pool and providers
-- KMS key versions
-- the bucket
+- IAM on the folder, the seed project, its service accounts, keys, key ring, pool and bucket, and custom roles in the seed
+- service-account tokens, impersonation and keys
+- the WIF pool, its providers and provider keys
+- KMS keys and key versions
+- the bucket's settings, tags and existence
+- side doors to the same access: HMAC keys, managed folders and object policies in the bucket, and identities added to the pool through namespaces, managed identities or attestation rules
+- the seed's audit trail: log sinks, exclusions, log buckets, links and log deletion
+- the seed's enabled APIs, and org policies and essential contacts on `trust-root` or the seed (`ci-foundation` holds those roles at org level)
 - the seed project's lien, existence, location or billing
 
-The exact permission list is checked against what deny policies support during implementation.
+The second rule names every identity of the GitHub pool (`principalSet://…/workloadIdentityPools/github/*`) and denies the same list except `getAccessToken` and `getOpenIdToken`, which is how a federated identity signs in as its CI account. So a role granted to the pool directly still can't touch the trust root.
+
+Every permission on the list was checked against Google's list of permissions deny policies support (2026-10-28). Changes to deny policies themselves and to the billing account aren't on that list: Deny Admin is authoritative and held only by `gcp-org-admins`, and billing IAM is authoritative in this stack, so drift detection shows any change.
+
+**Accepted risk**: Billing Account Costs Manager, which `ci-foundation` needs for spec 003's project budgets, can't be denied. It lets `ci-foundation` delete or weaken the billing-account budget, turn off anomaly alerts or redirect the billing export. The nightly `bootstrap` plan shows a changed budget, and ADR-0017's billing-account log sink (Phase 2) alerts on the rest.
 
 **Org-level IAM** follows one rule: each role is managed in exactly one mode.
 
-- **Authoritative** (one binding per role, listing every member, groups included): every role a CI identity holds, plus Project Creator (`gcp-org-admins` only) and Billing Account Creator (nobody). Folder IAM on `trust-root`, `shared`, `dev` and `prod` and the seed's admin roles (Owner, Editor, Storage Admin, Cloud KMS Admin, Workload Identity Pool Admin and Service Account Admin, all held by `gcp-org-admins`; no human or group gets Service Account Token Creator, which every CI identity would inherit) work the same way.
-- **Additive**: only for roles no CI identity holds. These are Organization Administrator and Folder Creator for `gcp-org-admins`, and Billing Account Administrator, which stays additive so the personal owner can't be locked out.
+- **Authoritative** (one binding per role, listing every member, groups included): every role a CI identity holds, plus Project Creator (`gcp-org-admins` only), and Billing Account Creator, Service Account Token Creator, OpenID Token Creator, Service Account User and Workload Identity User (nobody: an empty binding). `gcp-org-admins` shares Organization Policy Administrator with `ci-foundation`, because the owner sets `trust-root`'s folder policies.
+- **Whole policies**: folder IAM on `trust-root` (empty), `shared`, `dev` and `prod`; the state bucket; each state key; and each CI service account (only Workload Identity User, for its gate).
+- **Seed**: one authoritative binding per role. Owner, Storage Admin, Cloud KMS Admin, Workload Identity Pool Admin and Service Account Admin are held by `gcp-org-admins`. Editor stays with Google's APIs service agent, which Google grants it on every project. Nobody holds the impersonation roles above, which every CI identity would inherit, or Service Account Key Admin.
+- **Additive**: only for roles no CI identity holds. These are Organization Administrator and Folder Creator for `gcp-org-admins`, and Billing Account Administrator for `gcp-billing-admins`, which stays additive so the personal owner can't be locked out. Deny Admin is authoritative (`gcp-org-admins`), because deny-policy changes can't themselves be denied.
+
+**Folder org policies on `trust-root`**, which `foundation` never manages. A folder policy replaces the org's, so `ci-foundation`'s org-level Organization Policy Administrator can't loosen them, and the deny policy stops it from changing them on the folder:
+
+- `compute.skipDefaultNetworkCreation`
+- `iam.disableServiceAccountKeyCreation` and `iam.disableServiceAccountKeyUpload` (INV-01 for the seed, whatever the org says)
+- `iam.allowServiceAccountCredentialLifetimeExtension` (none)
+- `iam.workloadIdentityPoolProviders` (GitHub's issuer only) and `iam.workloadIdentityPoolAwsAccounts` (none), so the seed's pool can only ever hold GitHub providers
+- `storage.restrictAuthTypes` (no HMAC-signed requests)
+- `essentialcontacts.allowedContactDomains` (the identity domain only)
+
+**Audit**: Data Access logs on the seed for `sts`, `iamcredentials`, `storage` and `cloudkms` record every token exchange, every token minted for a CI account, and every state object and state key a CI identity uses.
 
 Before the first apply, the authoritative list is compared with the org inventory (ADR-0017), so no existing holder disappears by surprise.
 
@@ -135,7 +155,7 @@ One bucket, `gcp-agent-factory-tfstate-<sfx>`, in `europe-north1`:
 | Prefix | State key | Written by | Read by |
 |---|---|---|---|
 | `trust-root/bootstrap/` | `state-trust-root` | owner | `ci-plan`, `ci-foundation`, `ci-apply-*` |
-| `trust-root/github/` | `state-trust-root` | owner | owner |
+| `trust-root/github/` | `state-github` (owner only) | owner | owner |
 | `shared/<stack>/` | `state-shared` | `ci-foundation` | `ci-plan`, `ci-apply-*` |
 | `dev/<stack>/` | `state-dev` | `ci-apply-dev` | `ci-plan` |
 | `prod/<stack>/` | `state-prod` | `ci-apply-prod` | `ci-plan` |
@@ -190,12 +210,16 @@ One bucket, `gcp-agent-factory-tfstate-<sfx>`, in `europe-north1`:
 
 1. **Prerequisites**: complete PLAN §12 (org and billing inventory, groups, phishing-resistant 2-step verification, the billing grant, the notification address). Rehearse the encryption sequence locally first: two `pbkdf2` methods, a local backend, no cloud.
 2. **Roles for the run**:
-   - Organization Administrator and Folder Creator via `gcp-org-admins`. Grant Folder Creator once with `gcloud`; `bootstrap` then imports and manages the binding.
+   - Organization Administrator via `gcp-org-admins`. Grant Folder Creator, Deny Admin and Organization Policy Administrator to `gcp-org-admins` once with `gcloud`, so the first apply doesn't wait on IAM propagation for the folders, the deny policy and the `trust-root` org policies. `bootstrap` then manages them: the additive grant needs no import, and the authoritative Deny Admin and Organization Policy Administrator bindings list the group.
    - Project Creator from the domain-wide grant, which `bootstrap` replaces with `gcp-org-admins`.
    - Billing Account User through `gcp-billing-admins`.
 3. **Isolated credentials**: a temporary `CLOUDSDK_CONFIG`, then `gcloud auth application-default login` as the org identity. No coding agent runs during trust-root work.
 4. **Inputs**: `bootstrap/terraform.tfvars` holds the org ID, customer ID and billing account ID. They are committed: they identify but don't authorize. Later stacks read them from `bootstrap`'s outputs.
-5. **First apply**, with local state. The keys don't exist yet, so a documented `TF_ENCRYPTION` override encrypts the local state with a `pbkdf2` passphrase from an environment variable. The committed configuration always carries the enforced `gcp_kms` block.
+5. **First apply**, with local state: an uncommitted `backend_override.tf` selects the local backend, and `state_bucket` and `state_key` stay unset. The keys don't exist yet, so a documented `TF_ENCRYPTION` override encrypts the local state with a `pbkdf2` passphrase from an environment variable; it replaces both the `state` and the `plan` method, so the `gcp_kms` key provider is never built. The committed configuration always carries the enforced `gcp_kms` block. The apply runs in two phases, because budgets, org policies and deny policies refuse user credentials without a quota project, and the provider ignores the one in the ADC file:
+   1. `-target=module.seed -target=data.google_storage_project_service_account.seed`, with `quota_project` unset. This creates the seed, enables its APIs and creates the Cloud Storage service agent early.
+   2. Everything, with `quota_project` set to the seed.
+
+   IAM propagation can still fail a step once (for example the bucket key's grant to the new service agent, or the bucket's use of that key). Re-applying converges.
 6. **Migrate**: `tofu init -migrate-state` to the GCS backend under the `trust-root` key, with the passphrase method as `fallback` for that single run. Then drop the override, check that `tofu plan` is empty, and delete the local state files.
 7. **Apply `github`** with a fine-grained token for this repository that expires the same day, importing ruleset `25774561`. Nothing else merges before this.
 8. **Clean up**: revoke ADC and delete the temporary gcloud configuration.
@@ -226,7 +250,7 @@ Each of these lands as a `bootstrap` PR that the owner applies before the spec's
   - Saved plans with hash checks, and refusal of stale plans.
   - Per-stack concurrency, dev before prod.
   - Versioned state, soft delete, `prevent_destroy`, a lien, and an issue whenever a drift check itself fails.
-- **Cost**: about €0.30/month idle, plus a gross-cost billing-account budget from the first apply.
+- **Cost**: about €0.36/month idle, plus a gross-cost billing-account budget from the first apply.
 - **Performance**: only affected stacks run.
 - **Sustainability**: everything stays in `europe-north1`; the nightly drift run is the only scheduled work.
 
@@ -234,12 +258,13 @@ Each of these lands as a `bootstrap` PR that the owner applies before the spec's
 
 | Item | Idle / month | Per use | Free tier | Guardrail |
 |---|---|---|---|---|
-| KMS, 5 software keys (4 state + bucket), 90-day rotation | ~€0.30 (~€0.06 per active version; the first rotation lands after the trial) | ~€0.03 per 10k operations, a few dozen per run | none | software keys only, no HSM |
+| KMS, 6 software keys (4 scopes + `github` + bucket), 90-day rotation | ~€0.36 (~€0.06 per active version; the first rotation lands after the trial) | ~€0.03 per 10k operations, a few dozen per run | none | software keys only, no HSM |
 | GCS state bucket, `europe-north1` | < €0.01 (a few MB) | operations ~€0 | Always Free covers US regions only | lifecycle: 10 noncurrent versions, 30 days |
-| Billing-account budget, WIF, STS, IAM, Resource Manager, Service Usage, Admin Activity audit logs | €0 | €0 | free | no Data Access logs |
+| Billing-account budget, WIF, STS, IAM, Resource Manager, Service Usage, deny policy, org policies, Admin Activity audit logs | €0 | €0 | free | |
+| Data Access logs for `sts`, `iamcredentials`, `storage` and `cloudkms` on the seed | €0 | a few dozen entries per CI run | 50 GiB of logs per project per month | seed only |
 | GitHub Actions, including 7-day plan artifacts | €0 | €0 | free for public repos | concurrency groups; affected stacks only |
 
-Net: about +€0.30/month idle and ~€0 per run (approx.). Budget: the €85 gross-cost billing-account budget from this spec's first apply. Spec 003 adds the seed (€4) and other project budgets. Avoid-list hits: none.
+Net: about +€0.36/month idle and ~€0 per run (approx.). Budget: the €85 gross-cost billing-account budget from this spec's first apply. Spec 003 adds the seed (€4) and other project budgets. Avoid-list hits: none.
 
 ## Security impact
 
@@ -277,8 +302,11 @@ Net: about +€0.30/month idle and ~€0 per run (approx.). Budget: the €85 gr
 - **Domain restriction already enforced**: if the org already enforces Google's default `iam.allowedPolicyMemberDomains` (orgs created since May 2024 do), the WIF principal sets or the GCS service agent may be refused. The inventory reveals this. If so, `bootstrap` sets the managed `iam.managed.allowedPolicyMembers`, and spec 003 takes it over with `removed` and `import` blocks, so the constraint never has two owners.
 - **Things to verify during implementation**:
   - that OpenTofu's `gcp_kms` key provider can read state with decrypt-only access. If it also calls Encrypt when it reads, the decrypt-only rows above become encrypt/decrypt on the other scopes' keys, and the matching `state.feature` rows change
-  - which permissions deny policies support
+  - ~~which permissions deny policies support~~: checked 2026-10-28, see the deny policy above
   - whether the default `GITHUB_TOKEN` can read environment protection rules and rulesets
   - the first-run encryption sequence
+  - at the first apply: that an authoritative binding with no members clears the role without a perpetual diff, as the provider documents
+- **Conditional grants at org and seed level**: an unconditional authoritative binding owns only the unconditional binding of its role. A conditional grant (say Token Creator limited to `ci-*` accounts) is neither removed nor shown as drift. The whole-policy scopes (folders, bucket, keys, CI accounts) don't have this gap; for the org and the seed, the nightly `@security` check reads the full policies and fails on any conditional binding of a managed role (task 8).
+- **Google-managed bindings**: the whole-policy resources (folders, bucket, keys, CI accounts) remove anything Google adds there later, such as a service agent binding when an API is first used. Every such resource is one the platform creates and Google adds nothing to today; a new one shows up as drift, and is added to the code rather than reverted blindly.
 - **Single-region state**: the bucket and keys live in `europe-north1` only, and a key's location can't change. A regional outage would block deploys, not running services. This is accepted for the trial; the Phase 7 DR drill revisits it (a dual-region bucket with a matching key location).
 - **Teardown**: KMS keys can't be deleted, only their versions destroyed. End-of-trial teardown removes the lien, destroys the key versions and leaves the empty key ring.

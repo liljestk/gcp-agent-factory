@@ -38,12 +38,27 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   }
 }
 
-resource "google_service_account_iam_binding" "workload_identity_user" {
+locals {
+  principal_sets = {
+    for name, account in var.service_accounts :
+    name => "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.${account.gate}/${account.gate == "plan" ? "allowed" : account.environment}"
+  }
+}
+
+# Each account's whole IAM policy is managed: its gate holds Workload Identity User and nobody holds
+# anything else, so a Token Creator or Service Account User grant on it shows up as drift.
+data "google_iam_policy" "service_account" {
+  for_each = var.service_accounts
+
+  binding {
+    role    = "roles/iam.workloadIdentityUser"
+    members = [local.principal_sets[each.key]]
+  }
+}
+
+resource "google_service_account_iam_policy" "this" {
   for_each = var.service_accounts
 
   service_account_id = "projects/${var.project_id}/serviceAccounts/${each.value.email}"
-  role               = "roles/iam.workloadIdentityUser"
-  members = [
-    "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.${each.value.gate}/${each.value.gate == "plan" ? "allowed" : each.value.environment}",
-  ]
+  policy_data        = data.google_iam_policy.service_account[each.key].policy_data
 }

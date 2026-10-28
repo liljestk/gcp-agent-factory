@@ -37,7 +37,8 @@ Feature: Trust root, org IAM and the billing-account budget
   @REQ-LZ-010 @security
   Scenario: Seed admin roles belong to the org admins
     When I read the seed project's IAM policy
-    Then "Owner", "Editor" and the storage, KMS, WIF and service-account admin roles are held only by "gcp-org-admins"
+    Then "Owner" and the storage, KMS, WIF and service-account admin roles are held only by "gcp-org-admins"
+    And "Editor" is held only by Google's APIs service agent
 
   @REQ-LZ-011 @acceptance
   Scenario: The billing-account budget measures gross cost

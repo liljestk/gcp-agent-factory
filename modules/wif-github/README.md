@@ -1,6 +1,6 @@
 # wif-github
 
-Keyless CI: a workload identity pool and GitHub Actions provider, pinned to one repository's immutable IDs, plus authoritative Workload Identity User bindings that tie each CI service account to a gate (spec 002, REQ-LZ-001 and REQ-LZ-002).
+Keyless CI: a workload identity pool and GitHub Actions provider, pinned to one repository's immutable IDs. Each CI service account's whole IAM policy is managed and grants only Workload Identity User, to that account's gate (spec 002, REQ-LZ-001 and REQ-LZ-002).
 
 ## The gates
 
@@ -53,9 +53,9 @@ module "wif" {
 
 ## Notes
 
-- **The bindings are authoritative,** so nobody else, human or group, holds Workload Identity User on these accounts.
+- **Each account's whole policy is managed,** so nobody else, human or group, holds any role on these accounts: no Token Creator, Service Account User or Key Admin. A grant made elsewhere shows up as drift. Roles inherited from the project or org are the caller's to keep empty (`bootstrap` does).
 - **What this module doesn't cover:**
-  - The accounts' other roles are managed by `bootstrap`. CI needs no Service Account Token Creator, because Workload Identity User already allows minting their tokens.
+  - Roles the accounts hold elsewhere (org, folders, the seed, the state bucket) are managed by `bootstrap`. CI needs no Service Account Token Creator, because Workload Identity User already allows minting their tokens.
   - Fork pull requests never reach the pool, because GitHub withholds `id-token` from them.
 
 ## Cost notes

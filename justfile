@@ -5,6 +5,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 py_packages := `find libs -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | tr '\n' ' '`
 tofu_modules := `find modules -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | tr '\n' ' '`
+tofu_stacks := `find platforms -path '*/infra/*/tests/*.tftest.hcl' 2>/dev/null | sed 's|/tests/.*||' | sort -u | tr '\n' ' '`
 
 # List recipes
 default:
@@ -23,7 +24,7 @@ setup: deps
 fmt:
     uv run ruff check --fix .
     uv run ruff format .
-    tofu fmt -recursive modules
+    tofu fmt -recursive modules platforms
 
 # Every gate CI runs
 check: lint test test-iac repo-checks secrets
@@ -41,7 +42,7 @@ lint-python:
 
 # tofu fmt + tflint
 lint-iac:
-    tofu fmt -check -recursive modules
+    tofu fmt -check -recursive modules platforms
     tflint --init --config "$PWD/.tflint.hcl"
     tflint --recursive --config "$PWD/.tflint.hcl"
 
@@ -55,9 +56,11 @@ lint-repo:
 test *args:
     uv run pytest {{ args }}
 
-# `tofu test` for every reusable module (offline, no credentials)
+# `tofu test` for every reusable module and every stack with tests (offline, no credentials).
+# Stacks keep their committed lock file as is.
 test-iac:
     for m in {{ tofu_modules }}; do (cd "$m" && tofu init -backend=false -input=false >/dev/null && tofu test); done
+    for s in {{ tofu_stacks }}; do (cd "$s" && tofu init -backend=false -input=false -lockfile=readonly >/dev/null && tofu test); done
 
 # Repo conventions: skills, ADRs, traceability, coverage pragmas, pinned dependencies
 repo-checks:

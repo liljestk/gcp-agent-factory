@@ -1,6 +1,12 @@
 # covers: REQ-LZ-001, REQ-LZ-002
 
-mock_provider "google" {}
+mock_provider "google" {
+  mock_data "google_iam_policy" {
+    defaults = {
+      policy_data = "{\"bindings\":[]}"
+    }
+  }
+}
 
 override_resource {
   target = google_iam_workload_identity_pool.github
@@ -76,8 +82,16 @@ run "pinned_trust_and_gates" {
   }
 
   assert {
-    condition     = google_service_account_iam_binding.workload_identity_user["ci-apply-prod"].role == "roles/iam.workloadIdentityUser"
-    error_message = "The bindings grant Workload Identity User."
+    condition = alltrue([
+      for name, policy in data.google_iam_policy.service_account :
+      length(policy.binding) == 1 && one(policy.binding).role == "roles/iam.workloadIdentityUser" && one(policy.binding).members == toset([output.principal_sets[name]])
+    ])
+    error_message = "Each account's whole policy grants only Workload Identity User, to its own gate: no Token Creator or Service Account User for anyone."
+  }
+
+  assert {
+    condition     = google_service_account_iam_policy.this["ci-apply-prod"].service_account_id == "projects/gcp-agent-factory-seed-k3x9/serviceAccounts/ci-apply-prod@gcp-agent-factory-seed-k3x9.iam.gserviceaccount.com"
+    error_message = "The policy is set on the account itself."
   }
 }
 

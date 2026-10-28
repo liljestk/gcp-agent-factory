@@ -38,6 +38,8 @@ module "seed" {
 | `project_id` | project ID |
 | `number` | project number |
 | `services` | enabled APIs, sorted |
+| `folder_id` | parent folder |
+| `lien` | name of the lien, or null |
 
 ## Notes
 

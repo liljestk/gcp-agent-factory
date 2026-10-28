@@ -160,6 +160,15 @@ class TestProviders:
         )
         only(safety(tmp_path), "uses provider hashicorp/evil")
 
+    def test_comments_in_provider_and_backend_blocks_are_fine(self, tmp_path: Path) -> None:
+        write(
+            tmp_path,
+            "stacks/demo/versions.tf",
+            'terraform {\n  # state\n  backend "gcs" {\n    # where\n    bucket = "b"\n  }\n}\n'
+            'provider "google" {\n  # quota\n  region = "europe-north1" # here\n}\n',
+        )
+        assert safety(tmp_path) == []
+
     def test_provider_blocks(self, tmp_path: Path) -> None:
         write(
             tmp_path,

@@ -10,7 +10,8 @@ output "provider_name" {
 
 output "principal_sets" {
   description = "The principal set each service account trusts, by account name."
-  value       = { for name, binding in google_service_account_iam_binding.workload_identity_user : name => one(binding.members) }
+  value       = local.principal_sets
+  depends_on  = [google_service_account_iam_policy.this]
 }
 
 output "gates" {

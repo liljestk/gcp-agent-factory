@@ -80,7 +80,7 @@ Related ADRs:
 #### Acceptance criteria
 
 - Reads and writes are limited by prefix allow-lists, and `ci-plan` writes nothing.
-- No CI identity can write or delete anything under `trust-root/`, and none can read `trust-root/github/`.
+- No CI identity can write or delete anything under `trust-root/`, and none can read `trust-root/github/`. The `github` stack's state also has its own key that only the owner can use.
 - None of these can write the scope that isn't theirs:
   - `ci-apply-dev` can't write `prod/`
   - `ci-apply-prod` can't write `dev/`
@@ -185,7 +185,7 @@ Related ADRs:
   - None holds Organization Administrator, Security Admin or a basic role.
 - **Deny policy**: a deny policy on `trust-root` denies every CI identity the trust-root permissions listed in the design.
 - **Billing account**: `ci-foundation` holds exactly Billing Account User and Billing Account Costs Manager (authoritative). Billing Account Administrator stays additive.
-- **Seed admin roles**: Owner, Editor and the admin roles for storage, KMS, WIF and service accounts are held only by `gcp-org-admins`.
+- **Seed admin roles**: Owner and the admin roles for storage, KMS, WIF and service accounts are held only by `gcp-org-admins`. Editor is held only by Google's APIs service agent, which Google grants it on every project.
 - **No mixed modes**: no role is managed both authoritatively and additively, so an extra member always shows up as drift.
 
 **Verified by**: `platforms/landing-zone/tests/features/bootstrap.feature` (tag `@REQ-LZ-010`)

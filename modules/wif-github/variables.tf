@@ -86,8 +86,8 @@ variable "service_accounts" {
   description = <<-EOT
     CI service accounts by name. `gate = "plan"` lets the plan gate's allowed runs use the
     account; `gate = "deploy"` with `environment` lets only a push run of tofu.yml on main, in
-    that GitHub environment, use it. Each account's Workload Identity User binding is
-    authoritative.
+    that GitHub environment, use it. Each account's whole IAM policy is managed: its gate holds
+    Workload Identity User and nobody holds anything else.
   EOT
   type = map(object({
     email       = string

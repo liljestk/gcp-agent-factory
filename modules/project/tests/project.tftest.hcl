@@ -53,6 +53,11 @@ run "seed_project" {
     condition     = google_resource_manager_lien.this[0].parent == "projects/123456789012" && google_resource_manager_lien.this[0].restrictions == tolist(["resourcemanager.projects.delete"])
     error_message = "The lien must block deleting the project."
   }
+
+  assert {
+    condition     = output.lien != null && output.folder_id == "folders/111"
+    error_message = "The outputs name the lien and the parent folder."
+  }
 }
 
 run "no_lien" {
@@ -70,7 +75,7 @@ run "no_lien" {
   }
 
   assert {
-    condition     = length(google_resource_manager_lien.this) == 0 && length(output.services) == 0
+    condition     = length(google_resource_manager_lien.this) == 0 && output.lien == null && length(output.services) == 0
     error_message = "Without a reason there is no lien, and an empty list enables no API."
   }
 }

@@ -69,6 +69,18 @@ class TestBlocks:
         ((_, state),) = parsed.blocks_in(encryption, "state", 0)
         assert state == {"enforced": True}
 
+    def test_comments_never_show_up_as_arguments(self, tmp_path: Path) -> None:
+        parsed = load(
+            tmp_path,
+            "main.tf",
+            "# top\n"
+            'provider "google" {\n  region = "x" # inline\n  /* block */\n'
+            "  labels = {\n    # in a map\n    a = 1\n  }\n}\n",
+        )
+        assert set(parsed.document) == {"provider"}
+        ((_, body),) = parsed.blocks("provider", 1)
+        assert set(body) == {"region", "labels"}
+
     def test_json_blocks_accept_objects_and_lists(self, tmp_path: Path) -> None:
         parsed = load(
             tmp_path,

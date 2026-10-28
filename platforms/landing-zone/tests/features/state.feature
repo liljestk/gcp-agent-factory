@@ -51,3 +51,4 @@ Feature: Encrypted, partitioned remote state
       | state-trust-root | ci-foundation | encrypt | no      |
       | state-shared     | ci-foundation | encrypt | yes     |
       | state-trust-root | ci-apply-dev  | decrypt | yes     |
+      | state-github     | ci-plan       | decrypt | no      |

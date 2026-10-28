@@ -24,7 +24,9 @@ CONFIG_PATTERNS: Final = ("*.tf", "*.tofu", "*.tf.json", "*.tofu.json")
 CONFIG_SUFFIXES: Final = (".tf", ".tofu", ".tf.json", ".tofu.json")
 # A `.tofu` file shadows the `.tf` file of the same name; the JSON forms pair up the same way.
 _SHADOWED: Final = ((".tf", ".tofu"), (".tf.json", ".tofu.json"))
-_BLOCK_MARKER: Final = "__is_block__"
+# Keys python-hcl2 adds to the documents it returns. They aren't configuration, so a comment never
+# reads as an argument.
+_METADATA: Final = frozenset({"__is_block__", "__comments__", "__inline_comments__"})
 
 Block = tuple[tuple[str, ...], dict[str, object]]
 
@@ -130,7 +132,7 @@ class ConfigFile:
     ) -> list[Block]:
         if not isinstance(node, dict):
             raise self._malformed(kind)
-        body = {str(key): value for key, value in node.items() if key != _BLOCK_MARKER}
+        body = {str(key): value for key, value in node.items() if key not in _METADATA}
         if depth == 0:
             return [(labels, body)]
         if any("\\" in key for key in body):
@@ -191,5 +193,5 @@ def load_config(path: Path, where: str) -> ConfigFile:
     except LarkError as error:
         message = f"{where}: isn't valid HCL"
         raise StacksError(message) from error
-    items = {str(key): value for key, value in parsed.items()}
+    items = {str(key): value for key, value in parsed.items() if key not in _METADATA}
     return ConfigFile(where=where, text=text, document=items, json_syntax=False)
