@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
 from repo_checks.adrs import check_adrs
+from repo_checks.encryption import check_encryption
 from repo_checks.pins import check_pins
 from repo_checks.pragmas import check_pragmas
 from repo_checks.skills import check_skills, check_subagents
+from repo_checks.tofu_safety import check_tofu_safety
 from repo_checks.traceability import check_traceability
 
 if TYPE_CHECKING:
@@ -25,6 +27,8 @@ CHECKS: Final[dict[str, Callable[[Path], list[Finding]]]] = {
     "traceability": check_traceability,
     "pragmas": check_pragmas,
     "pins": check_pins,
+    "encryption": check_encryption,
+    "tofu-safety": check_tofu_safety,
 }
 
 

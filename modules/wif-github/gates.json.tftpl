@@ -1,0 +1,5 @@
+{
+  "condition": "assertion.repository_id == '${repository_id}' && assertion.repository_owner_id == '${repository_owner_id}' && (attribute.plan == 'allowed' || attribute.deploy != 'none')",
+  "plan": "((assertion.actor_id == '${owner_actor_id}' && assertion.event_name in ['pull_request', 'workflow_dispatch']) || (assertion.ref == 'refs/heads/main' && assertion.event_name in ['push', 'schedule', 'workflow_dispatch'])) ? 'allowed' : 'denied'",
+  "deploy": "(assertion.event_name == 'push' && assertion.ref == 'refs/heads/main' && assertion.job_workflow_ref == '${repository}/${apply_workflow}@refs/heads/main' && assertion.workflow_ref == assertion.job_workflow_ref && assertion.runner_environment == 'github-hosted' && 'environment' in assertion) ? assertion.environment : 'none'"
+}

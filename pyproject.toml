@@ -6,10 +6,11 @@ readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.13,<3.14"
-dependencies = ["repo-checks"]
+dependencies = ["repo-checks", "stacks"]
 
 [dependency-groups]
 dev = [
+  "cel-python>=0.2",
   "mypy>=1.13",
   "pre-commit>=4.0",
   "pytest>=8.3",
@@ -30,6 +31,7 @@ members = ["libs/*"]
 
 [tool.uv.sources]
 repo-checks = { workspace = true }
+stacks = { workspace = true }
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
@@ -90,7 +92,7 @@ markers = [
 # ---------------------------------------------------------------- coverage (ADR-0013: 100% line + branch)
 [tool.coverage.run]
 branch = true
-source = ["libs/repo-checks/src", ".claude/hooks"]
+source = ["libs/repo-checks/src", "libs/stacks/src", ".claude/hooks"]
 
 [tool.coverage.report]
 fail_under = 100

@@ -1,0 +1,38 @@
+# Stack catalog (spec 002, ADR-0018): every OpenTofu root module, its instances and who may plan
+# and apply it. `uv run stacks matrix --base <sha>` turns the change since <sha> into the CI
+# plan/apply jobs; `uv run stacks matrix --all` lists every job (drift runs).
+#
+# A stack has either `envs` (one instance per environment, applied in the GitHub environment of
+# the same name) or a `scope`: `shared` (applied in the `foundation` environment) or
+# `trust-root` (applied only by the owner, never by CI). `plan` and `apply` default to `ci`.
+# `inputs` lists files outside the stack and its modules that the stack reads.
+
+# Apply order of CI-applied stacks. Within a tier: shared, then dev, then prod.
+tiers: [canary, foundation, network, ops, data, agents, apps]
+
+# A change under any of these plans every stack. A trailing slash marks a directory. The
+# pipeline, the toolchain and this tool itself are here, so a change to the gate is planned too.
+all-stacks-paths:
+  - mise.toml
+  - platforms/stacks.yaml
+  - .github/workflows/
+  - .github/actions/
+  - libs/stacks/
+  - pyproject.toml
+  - uv.lock
+  - justfile
+
+stacks:
+  bootstrap:
+    path: platforms/landing-zone/infra/bootstrap
+    scope: trust-root
+    apply: local
+  github:
+    path: platforms/landing-zone/infra/github
+    scope: trust-root
+    plan: local
+    apply: local
+  ci-canary:
+    path: platforms/landing-zone/infra/ci-canary
+    tier: canary
+    envs: [dev, prod]
