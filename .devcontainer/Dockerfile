@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Canonical dev environment (ADR-0001). Images are pinned by digest; Renovate keeps them current.
-FROM jdxcode/mise:2026.10.11@sha256:22608f88ac10c74f541553f3e4e4dab6a79cdb9669da916f6e0804959348080a AS mise
+FROM jdxcode/mise:2026.10.25@sha256:91417f41840316b7c5da6854bef393eccea4546ae70f8baf0803e0e94287b68d AS mise
 
 FROM mcr.microsoft.com/devcontainers/base:trixie@sha256:6ee2b4097c75d33e9a94d941577a3286e5d629434fba384688b06daeeaaeac99
 
